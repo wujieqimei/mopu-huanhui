@@ -41,6 +41,52 @@ function addDeletedId(id) {
   try { localStorage.setItem(DELETED_KEY, JSON.stringify([...s])); } catch (e) {}
 }
 
+/* 感知哈希（dhash）用于「禁止重复上传」：预计算已烘焙图的哈希存于 data/dhashes.json，
+   上传时对新图算 dhash，与现有集合比对，汉明距离过小则判定重复并拦截。 */
+let BUILTIN_DHASHES = {};
+async function fetchDHashes() {
+  try {
+    const r = await fetch("data/dhashes.json");
+    if (r.ok) BUILTIN_DHASHES = await r.json();
+  } catch (e) { /* 忽略：不影响正常浏览 */ }
+}
+
+/* 计算文件的 dhash（与 Python 端算法一致：9x8 灰度，相邻像素差分 → 64 bit） */
+async function computeDHash(file) {
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+  const SIZE = 8;
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE + 1; canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, SIZE + 1, SIZE);
+  const data = ctx.getImageData(0, 0, SIZE + 1, SIZE).data;
+  let bits = 0n;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const i = (y * (SIZE + 1) + x) * 4;
+      const p0 = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const p1 = (data[i + 4] + data[i + 5] + data[i + 6]) / 3;
+      bits = (bits << 1n) | (p0 > p1 ? 1n : 0n);
+    }
+  }
+  return bits.toString(16).padStart(16, "0");
+}
+
+/* 两个 16 位十六进制 dhash 的汉明距离 */
+function hammingHex(a, b) {
+  let v = BigInt("0x" + a) ^ BigInt("0x" + b);
+  let c = 0n;
+  while (v > 0n) { c += v & 1n; v >>= 1n; }
+  return Number(c);
+}
+
 /* 按 createdAt 倒序：最新上传排在最前 */
 function sortArts(arr) {
   return arr.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -308,6 +354,7 @@ function closeLogin() {
       // 合并：把 data/artworks.json（已烘焙的全部作品）里、本地缺失的条目补进本地库。
       // 这样以后重新部署新增的作品，访客刷新即可自动出现，无需清空浏览器。
       const builtin = await fetchBuiltin();
+      await fetchDHashes(); // 加载已烘焙图的感知哈希，供重复上传检测
       const deleted = getDeletedIds(); // 管理员已删除的 id（持久化黑名单）
       const haveIds = new Set(list.map((a) => a.id));
       let added = 0;
@@ -604,6 +651,17 @@ function closeLogin() {
     } else {
       // 新增：必须选图
       if (!file) { alert("请选择作品图片"); return; }
+      // 重复上传检测：算 dhash 与现有图比对，疑似重复则拦截
+      try {
+        const h = await computeDHash(file);
+        const pool = Object.values(BUILTIN_DHASHES).concat(artworks.filter((a) => a.dhash).map((a) => a.dhash));
+        let dup = false;
+        for (const eh of pool) {
+          if (eh && hammingHex(h, eh) <= 12) { dup = true; break; }
+        }
+        if (dup) { alert("⚠️ 该图片与现有作品高度相似，疑似重复上传，已禁止。如需替换请先删除原图再上传。"); return; }
+        item.dhash = h; // 记录本图指纹，便于后续再上传时识别
+      } catch (e) { /* 哈希失败不阻断上传，仅跳过检测 */ }
       item.id = "u-" + Date.now();
       item.blob = file; item.src = null;
       item.userUploaded = true; // 标记为「用户通过网页上传」，剪枝时跳过、永久保留
