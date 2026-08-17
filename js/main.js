@@ -136,10 +136,19 @@ async function ghReadFile(path) {
   }
 }
 /* 写入/更新仓库文件（contentB64 为标准 base64 字符串） */
-async function ghWriteFile(path, contentB64, message, sha) {
+async function ghWriteFile(path, contentB64, message, sha, attempt = 0) {
   const body = { message, content: contentB64, branch: GH_BRANCH };
   if (sha) body.sha = sha;
-  return ghRequest(path, "PUT", body);
+  try {
+    return await ghRequest(path, "PUT", body);
+  } catch (e) {
+    // 并发写入时可能 409（sha 过期），重读最新 sha 后重试
+    if (attempt < 3 && e.message && /409|冲突|Conflict/.test(e.message)) {
+      const f = await ghReadFile(path);
+      return ghWriteFile(path, contentB64, message, f && f.sha, attempt + 1);
+    }
+    throw e;
+  }
 }
 /* 删除仓库文件 */
 async function ghRemoveFile(path, sha, message) {
@@ -157,8 +166,18 @@ function utf8ToBase64(str) {
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
 }
-async function ghWriteJson(path, data, message, sha) {
-  return ghWriteFile(path, utf8ToBase64(JSON.stringify(data, null, 2)), message, sha);
+async function ghWriteJson(path, data, message, sha, attempt = 0) {
+  const body = { message, content: utf8ToBase64(JSON.stringify(data, null, 2)), branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+  try {
+    return await ghRequest(path, "PUT", body);
+  } catch (e) {
+    if (attempt < 3 && e.message && /409|冲突|Conflict/.test(e.message)) {
+      const f = await ghReadJson(path);
+      return ghWriteJson(path, data, message, f && f.sha, attempt + 1);
+    }
+    throw e;
+  }
 }
 /* File / Blob -> 标准 base64（去掉 data: 前缀） */
 function fileToBase64(file) {
@@ -203,6 +222,14 @@ async function makeThumb(file, maxEdge = 800) {
     });
   } finally { URL.revokeObjectURL(u); }
 }
+/* 串行化所有 GitHub 写操作，避免连传多张时 artworks.json/dhashes.json 并发 409 冲突产生孤儿文件 */
+let _ghChain = Promise.resolve();
+function ghSerialize(task) {
+  const p = _ghChain.then(() => task());
+  _ghChain = p.then(() => {}, () => {}); // 无论成功失败都保持队列继续
+  return p;
+}
+
 /* 把一幅作品（新增或编辑换图）写进 GitHub 仓库 */
 async function pushArtworkToGithub(item, file, editingId) {
   const id = editingId || item.id;
@@ -885,8 +912,8 @@ function closeLogin() {
       if (!getGithubToken()) {
         alert("未配置 GitHub Token，作品仅暂存浏览器本地、未同步到仓库。点顶栏「⚙ 仓库」粘贴 Token 后即可同步。");
       } else {
-        if (needPush) await pushArtworkToGithub(item, file, editingId);
-        else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model });
+        if (needPush) await ghSerialize(() => pushArtworkToGithub(item, file, editingId));
+        else if (needMeta) await ghSerialize(() => updateArtworkMetaInGithub(editingId, { title, prompt, model }));
         synced = true;
       }
       await idbPut(item);
@@ -907,7 +934,7 @@ function closeLogin() {
     if (!confirm(`确定删除「${art.title}」？此操作会同步删除 GitHub 仓库中的图片与记录，不可撤销。`)) return;
     try {
       if (getGithubToken()) {
-        await deleteArtworkFromGithub(art);
+        await ghSerialize(() => deleteArtworkFromGithub(art));
       } else {
         alert("未配置 GitHub Token，仅删除本地副本。点「⚙ 仓库」配置后可同步删除仓库。");
       }
