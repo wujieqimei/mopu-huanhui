@@ -11,9 +11,10 @@
    仅首次（或仅含旧示例时）写入 IndexedDB；之后以本地编辑为准。 */
 const BUILTIN_URL = "data/artworks.json";
 
-/* 读取内置作品数据：图片走相对文件路径，不依赖浏览器本地库 */
+/* 读取内置作品数据：图片走相对文件路径，不依赖浏览器本地库。
+   带缓存破除参数，确保删除/上传后页面能及时反映仓库最新状态。 */
 async function fetchBuiltin() {
-  const resp = await fetch(BUILTIN_URL);
+  const resp = await fetch(BUILTIN_URL + "?t=" + Date.now());
   if (!resp.ok) throw new Error("无法读取内置作品数据 (" + resp.status + ")");
   const arr = await resp.json();
   return arr.map((s) => ({
@@ -46,7 +47,7 @@ function addDeletedId(id) {
 let BUILTIN_DHASHES = {};
 async function fetchDHashes() {
   try {
-    const r = await fetch("data/dhashes.json");
+    const r = await fetch("data/dhashes.json?t=" + Date.now());
     if (r.ok) BUILTIN_DHASHES = await r.json();
   } catch (e) { /* 忽略：不影响正常浏览 */ }
 }
@@ -590,9 +591,13 @@ function closeLogin() {
       }
       artworks = shuffleArts(list);
     } catch (err) {
-      console.error("IndexedDB 读取失败：", err);
-      try { artworks = shuffleArts(await fetchBuiltin()); } // 降级：直接内存展示内置数据
-      catch (e2) { artworks = []; }
+      console.error("读取失败：", err);
+      try {
+        // 降级：直接内存展示内置数据，但必须套用删除黑名单，避免已删作品「复活」
+        const b = await fetchBuiltin();
+        const deleted = getDeletedIds();
+        artworks = shuffleArts(b.filter((s) => !deleted.has(s.id)));
+      } catch (e2) { artworks = []; }
     }
     render();
   }
@@ -909,43 +914,55 @@ function closeLogin() {
     }
 
     try {
-      if (!getGithubToken()) {
-        alert("未配置 GitHub Token，作品仅暂存浏览器本地、未同步到仓库。点顶栏「⚙ 仓库」粘贴 Token 后即可同步。");
-      } else {
+      if (getGithubToken()) {
         if (needPush) await ghSerialize(() => pushArtworkToGithub(item, file, editingId));
         else if (needMeta) await ghSerialize(() => updateArtworkMetaInGithub(editingId, { title, prompt, model }));
         synced = true;
+      } else {
+        alert("未配置 GitHub Token，作品仅暂存浏览器本地、未同步到仓库。点顶栏「⚙ 仓库」粘贴 Token 后即可同步。");
       }
-      await idbPut(item);
-      closeEditor();
-      await load();
-      alert(synced
-        ? "已保存到 GitHub 仓库（约 1 分钟后全网访客可见），本地已立即显示。"
-        : "已保存到本地（未配置 Token，未同步到仓库）。");
     } catch (err) {
       console.error(err);
-      alert("保存失败：" + (err && err.message ? err.message : err));
+      alert("已保存到本地，但同步到 GitHub 失败：" + (err && err.message ? err.message : err) + "（本地已显示；检查 Token 后重新保存即可同步仓库）");
     }
+    // 本地始终保存，确保不丢数据（GitHub 失败也不影响本地）
+    await idbPut(item);
+    closeEditor();
+    try { await load(); } catch (e) {}
+    alert(synced
+      ? "已保存到 GitHub 仓库（约 1 分钟后全网访客可见），本地已立即显示。"
+      : "已保存到本地（未配置 Token，未同步到仓库）。");
   });
 
   /* ---------- 删除 ---------- */
   async function deleteArt(art) {
     if (!isAdmin()) return; // 仅管理员可删除
-    if (!confirm(`确定删除「${art.title}」？此操作会同步删除 GitHub 仓库中的图片与记录，不可撤销。`)) return;
+    if (!confirm(`确定删除「${art.title}」？将同时从本地与 GitHub 仓库移除，不可撤销。`)) return;
+
+    // 1) 本地优先：立刻移除并刷新界面，确保「删除」即时生效，不依赖 GitHub 是否成功
+    try { await idbDelete(art.id); } catch (e) { /* 本地删除尽力而为 */ }
+    addDeletedId(art.id); // 黑名单：后续 load() 永不把已删图重新加回
+    artworks = artworks.filter((a) => a.id !== art.id);
+    render();
+
+    // 2) 再尽力同步到 GitHub 仓库（失败也不影响本地已删除的结果）
+    let msg;
     try {
       if (getGithubToken()) {
         await ghSerialize(() => deleteArtworkFromGithub(art));
+        msg = "已从 GitHub 仓库删除（约 1 分钟后全网访客可见）。";
       } else {
-        alert("未配置 GitHub Token，仅删除本地副本。点「⚙ 仓库」配置后可同步删除仓库。");
+        msg = "已删除本地副本。未配置 GitHub Token，仓库未同步——点「⚙ 仓库」粘贴 Token 后可同步删除仓库。";
       }
-      await idbDelete(art.id);
-      addDeletedId(art.id); // 记入黑名单，防止 load() 合并补图时把它重新加回
-      await load();
-      alert(getGithubToken() ? "已从 GitHub 仓库删除（约 1 分钟后全网生效）。" : "已删除本地副本（仓库未删）。");
     } catch (err) {
       console.error(err);
-      alert("删除失败：" + (err && err.message ? err.message : err));
+      msg = "本地已删除，但同步 GitHub 失败：" + (err && err.message ? err.message : err) +
+            "\n（本地不会再显示该作品；检查 Token 后重新删除一次即可同步仓库）";
     }
+    alert(msg);
+
+    // 3) 与仓库/本地重新同步一次（删除黑名单已记录，已删作品不会复活）
+    try { await load(); } catch (e) {}
   }
 
   /* ---------- 全局 ESC ---------- */
