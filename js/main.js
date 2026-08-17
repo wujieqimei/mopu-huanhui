@@ -308,6 +308,7 @@ function closeLogin() {
       const canonicalIds = new Set(builtin.map((s) => s.id));
       let pruned = 0;
       for (const a of list) {
+        if (a.userUploaded) continue; // 用户通过网页上传的图：永远保留，不参与剪枝
         if (!canonicalIds.has(a.id)) {
           await idbDelete(a.id);
           pruned++;
@@ -375,7 +376,8 @@ function closeLogin() {
       const item = {
         id: it.id || ("u-" + Date.now() + "-" + n),
         title: it.title, prompt: it.prompt, model: it.model, year: it.year,
-        createdAt: it.createdAt || Date.now(), blob: null, src: null
+        createdAt: it.createdAt || Date.now(), blob: null, src: null,
+        userUploaded: true // 导入备份属于用户数据，永久保留、不参与剪枝
       };
       if (it.dataUrl) {
         item.blob = await (await fetch(it.dataUrl)).blob();
@@ -581,11 +583,14 @@ function closeLogin() {
         item.blob = orig ? orig.blob : null;
         item.src = orig ? orig.src : null;
       }
+      // 编辑时保留原记录的「用户上传」标记，避免被剪枝误删
+      item.userUploaded = !!(orig && orig.userUploaded);
     } else {
       // 新增：必须选图
       if (!file) { alert("请选择作品图片"); return; }
       item.id = "u-" + Date.now();
       item.blob = file; item.src = null;
+      item.userUploaded = true; // 标记为「用户通过网页上传」，剪枝时跳过、永久保留
       item.createdAt = Date.now(); // 最新时间戳 → 自动排到第一位
     }
 
