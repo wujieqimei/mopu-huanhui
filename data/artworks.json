@@ -646,17 +646,5 @@
     "w": 1086,
     "h": 1448,
     "thumb": "assets/uploads/thumbs/u-1786955465416.webp"
-  },
-  {
-    "id": "u-1786959048438",
-    "title": "1",
-    "prompt": "1",
-    "model": "",
-    "year": "",
-    "createdAt": 1786959048438,
-    "file": "assets/uploads/u-1786959048438.webp",
-    "thumb": "assets/uploads/thumbs/u-1786959048438.webp",
-    "w": 784,
-    "h": 1168
   }
 ]
