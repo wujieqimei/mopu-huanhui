@@ -570,6 +570,7 @@ function closeLogin() {
     const file = artFile.files[0];
 
     if (!title) { alert("请填写标题"); return; }
+    if (!prompt) { alert("请填写提示词（必填）。只保留有图片和对应提示词的作品。"); return; }
 
     const item = { title, prompt, model };
 
