@@ -206,7 +206,7 @@ async function getImageSize(file) {
     return { w: img.naturalWidth, h: img.naturalHeight };
   } finally { URL.revokeObjectURL(u); }
 }
-/* 生成 webp 缩略图（最长边 800px） */
+/* 生成 webp 缩略图（最长边 800px）；同时返回原始尺寸，免去额外的图片解码 */
 async function makeThumb(file, maxEdge = 800) {
   const u = URL.createObjectURL(file);
   try {
@@ -218,9 +218,10 @@ async function makeThumb(file, maxEdge = 800) {
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-    return await new Promise((resolve, reject) => {
+    const blob = await new Promise((resolve, reject) => {
       canvas.toBlob((b) => b ? resolve(b) : reject(new Error("缩略图生成失败")), "image/webp", 0.85);
     });
+    return { blob, w: img.naturalWidth, h: img.naturalHeight };
   } finally { URL.revokeObjectURL(u); }
 }
 /* 串行化所有 GitHub 写操作，避免连传多张时 artworks.json/dhashes.json 并发 409 冲突产生孤儿文件 */
@@ -234,16 +235,20 @@ function ghSerialize(task) {
 /* 把一幅作品（新增或编辑换图）写进 GitHub 仓库 */
 async function pushArtworkToGithub(item, file, editingId) {
   const id = editingId || item.id;
-  const meta = await getImageSize(file);
+  // 生成缩略图（同时拿到原始尺寸）+ 原图 base64
+  const thumb = await makeThumb(file);
   const rawB64 = await fileToBase64(file);
-  const thumbBlob = await makeThumb(file);
-  const thumbB64 = await blobToBase64(thumbBlob);
+  const thumbB64 = await blobToBase64(thumb.blob);
 
-  // 上传原图 + 缩略图（覆盖式：先取 sha 再 PUT）
-  const up = await ghReadFile(`assets/uploads/${id}.webp`);
-  await ghWriteFile(`assets/uploads/${id}.webp`, rawB64, `upload image: ${item.title}`, up && up.sha);
-  const th = await ghReadFile(`assets/uploads/thumbs/${id}.webp`);
-  await ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha);
+  // 原图与缩略图相互独立：并行读取 sha，再并行 PUT，缩短整体耗时
+  const [up, th] = await Promise.all([
+    ghReadFile(`assets/uploads/${id}.webp`),
+    ghReadFile(`assets/uploads/thumbs/${id}.webp`)
+  ]);
+  await Promise.all([
+    ghWriteFile(`assets/uploads/${id}.webp`, rawB64, `upload image: ${item.title}`, up && up.sha),
+    ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha)
+  ]);
 
   // 更新 artworks.json
   const rec = {
@@ -251,7 +256,7 @@ async function pushArtworkToGithub(item, file, editingId) {
     model: item.model || "", year: "", createdAt: item.createdAt || Date.now(),
     file: `assets/uploads/${id}.webp`,
     thumb: `assets/uploads/thumbs/${id}.webp`,
-    w: meta.w, h: meta.h
+    w: thumb.w, h: thumb.h
   };
   const aj = await ghReadJson("data/artworks.json");
   const arts = aj ? aj.data.slice() : [];
@@ -407,6 +412,24 @@ const ADMIN_PASSWORD = "725725";
 const ADMIN_FLAG = "mopu_admin";
 let authGateOpen = false; // 暗门开关：仅你（知道暗门）可激活，激活后显示登录入口
 function isAdmin() { return !!localStorage.getItem(ADMIN_FLAG); }
+
+/* 轻量 Toast 提示（非阻塞，替代 alert，提升保存/同步时的反馈体验） */
+function showToast(msg, isError) {
+  let t = document.getElementById("wbToast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "wbToast";
+    t.style.cssText = "position:fixed;left:50%;bottom:32px;transform:translateX(-50%);z-index:9999;max-width:90vw;padding:10px 18px;border-radius:10px;font-size:14px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.18);transition:opacity .25s,transform .25s;opacity:0;pointer-events:none;";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = isError ? "#c0392b" : "rgba(30,30,30,.92)";
+  t.style.color = "#fff";
+  t.style.opacity = "1";
+  t.style.transform = "translateX(-50%) translateY(0)";
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = "0"; t.style.transform = "translateX(-50%) translateY(8px)"; }, 3400);
+}
 
 /* 同步当前页面的登录态 UI（登录按钮 / 管理员标识 / 编辑按钮） */
 function applyAuth() {
@@ -864,7 +887,7 @@ function closeLogin() {
     if (!prompt) { alert("请填写提示词（必填）。只保留有图片和对应提示词的作品。"); return; }
 
     const item = { title, prompt, model, createdAt: Date.now() };
-    let needPush = false, needMeta = false, synced = false;
+    let needPush = false, needMeta = false;
 
     if (editingId) {
       const orig = artworks.find((a) => a.id === editingId);
@@ -913,25 +936,34 @@ function closeLogin() {
       needPush = true;
     }
 
-    try {
-      if (getGithubToken()) {
-        if (needPush) await ghSerialize(() => pushArtworkToGithub(item, file, editingId));
-        else if (needMeta) await ghSerialize(() => updateArtworkMetaInGithub(editingId, { title, prompt, model }));
-        synced = true;
-      } else {
-        alert("未配置 GitHub Token，作品仅暂存浏览器本地、未同步到仓库。点顶栏「⚙ 仓库」粘贴 Token 后即可同步。");
+    // 1) 本地立即保存并渲染：先让作品「即时出现」，GitHub 同步放到后台，避免界面卡顿
+    if (editingId) {
+      const i = artworks.findIndex((a) => a.id === editingId);
+      if (i >= 0) {
+        artworks[i] = Object.assign({}, artworks[i], {
+          title, prompt, model,
+          blob: item.blob, src: item.src, dhash: item.dhash,
+          userUploaded: artworks[i].userUploaded || item.userUploaded
+        });
       }
-    } catch (err) {
-      console.error(err);
-      alert("已保存到本地，但同步到 GitHub 失败：" + (err && err.message ? err.message : err) + "（本地已显示；检查 Token 后重新保存即可同步仓库）");
+    } else {
+      artworks.unshift(item); // 新作品置顶，立即可见
     }
-    // 本地始终保存，确保不丢数据（GitHub 失败也不影响本地）
     await idbPut(item);
+    render();
     closeEditor();
-    try { await load(); } catch (e) {}
-    alert(synced
-      ? "已保存到 GitHub 仓库（约 1 分钟后全网访客可见），本地已立即显示。"
-      : "已保存到本地（未配置 Token，未同步到仓库）。");
+
+    // 2) 后台同步到 GitHub 仓库：失败仅提示，不影响已保存的本地结果
+    if (getGithubToken()) {
+      showToast("已保存到本地，正在同步到 GitHub 仓库…");
+      ghSerialize(async () => {
+        if (needPush) await pushArtworkToGithub(item, file, editingId);
+        else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model });
+      }).then(() => showToast("已同步到 GitHub 仓库（约 1 分钟后全网访客可见）。"))
+        .catch((err) => showToast("本地已显示；同步 GitHub 失败：" + (err && err.message ? err.message : err) + "（检查 Token 后重新保存即可同步）", true));
+    } else {
+      showToast("已保存到本地（未配置 Token，未同步仓库）。点「⚙ 仓库」粘贴 Token 可同步。");
+    }
   });
 
   /* ---------- 删除 ---------- */
@@ -961,8 +993,7 @@ function closeLogin() {
     }
     alert(msg);
 
-    // 3) 与仓库/本地重新同步一次（删除黑名单已记录，已删作品不会复活）
-    try { await load(); } catch (e) {}
+    // 本地已即时移除并持久化（删除黑名单已记录，仓库删除也已尽力同步），无需再阻塞刷新
   }
 
   /* ---------- 全局 ESC ---------- */
