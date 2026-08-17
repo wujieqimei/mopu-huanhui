@@ -403,12 +403,11 @@ function closeLogin() {
     return blobToDataURL(b);
   }
 
-  // 仅把「网页上传」的作品（含图片，转 base64）导出，便于交给管理员写回仓库
+  // 导出浏览器里的全部作品（含图片，转 base64），用于交给管理员与仓库数据对照
   async function exportAll() {
     const list = await idbGetAll();
-    const mine = list.filter((a) => a.userUploaded); // 只导出用户通过网页上传的图
     const out = [];
-    for (const a of mine) {
+    for (const a of list) {
       let dataUrl = "";
       try {
         if (a.blob) dataUrl = await blobToDataURL(a.blob);
@@ -417,20 +416,17 @@ function closeLogin() {
       out.push({
         id: a.id, title: a.title, prompt: a.prompt || "",
         model: a.model || "", year: a.year || "",
-        createdAt: a.createdAt || Date.now(), userUploaded: true, dataUrl
+        createdAt: a.createdAt || Date.now(),
+        userUploaded: !!a.userUploaded, dataUrl
       });
-    }
-    if (out.length === 0) {
-      alert("浏览器本地没有「网页上传」的作品可导出。");
-      return;
     }
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "mopu-my-uploads.json";
+    a.href = url; a.download = "mopu-huanhui-backup.json";
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    alert(`已导出 ${out.length} 幅网页上传的作品（图片已内嵌）为 mopu-my-uploads.json，把它发给我即可写回仓库。`);
+    alert(`已导出 ${out.length} 幅作品（图片已内嵌）为 mopu-huanhui-backup.json，交给管理员对照仓库即可。`);
   }
 
   // 从备份 JSON 恢复（base64 转回图片存入本地库）
