@@ -87,6 +87,186 @@ function hammingHex(a, b) {
   return Number(c);
 }
 
+/* =========================================================
+   GitHub 直写：数据落仓库（防丢失 + 实时同步）
+   - 通过 GitHub Contents API 直接写文件，无需后端
+   - Token 仅存浏览器 localStorage，绝不进源码
+   ========================================================= */
+const GH_OWNER = "wujieqimei";
+const GH_REPO = "mopu-huanhui";
+const GH_BRANCH = "main";
+const GH_TOKEN_KEY = "mopu_gh_token";
+function getGithubToken() { return localStorage.getItem(GH_TOKEN_KEY) || ""; }
+function setGithubToken(t) { if (t) localStorage.setItem(GH_TOKEN_KEY, t.trim()); }
+function clearGithubToken() { localStorage.removeItem(GH_TOKEN_KEY); }
+
+/* 统一的 GitHub API 请求封装（带鉴权 + 错误处理） */
+async function ghRequest(path, method, bodyObj) {
+  const token = getGithubToken();
+  if (!token) throw new Error("未配置 GitHub Token，无法写入仓库。点顶栏「⚙ 仓库」粘贴你的 Token。");
+  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`;
+  const resp = await fetch(api, {
+    method,
+    headers: {
+      "Authorization": "token " + token,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json"
+    },
+    body: bodyObj ? JSON.stringify(bodyObj) : undefined
+  });
+  if (!resp.ok) {
+    let msg = `GitHub API 错误 ${resp.status}`;
+    try { const e = await resp.json(); if (e && e.message) msg += "：" + e.message; } catch (_) {}
+    throw new Error(msg);
+  }
+  return resp.json();
+}
+/* 读取仓库文件：返回 {sha, text} 或 null（不存在） */
+async function ghReadFile(path) {
+  try {
+    const d = await ghRequest(path, "GET");
+    const b64 = (d.content || "").replace(/\s/g, "");
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return { sha: d.sha, text: new TextDecoder().decode(bytes) };
+  } catch (e) {
+    if (e.message && e.message.includes("404")) return null;
+    throw e;
+  }
+}
+/* 写入/更新仓库文件（contentB64 为标准 base64 字符串） */
+async function ghWriteFile(path, contentB64, message, sha) {
+  const body = { message, content: contentB64, branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+  return ghRequest(path, "PUT", body);
+}
+/* 删除仓库文件 */
+async function ghRemoveFile(path, sha, message) {
+  return ghRequest(path, "DELETE", { message, sha, branch: GH_BRANCH });
+}
+/* 读取/写入 JSON（UTF-8 安全） */
+async function ghReadJson(path) {
+  const f = await ghReadFile(path);
+  if (!f) return null;
+  return { sha: f.sha, data: JSON.parse(f.text) };
+}
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+async function ghWriteJson(path, data, message, sha) {
+  return ghWriteFile(path, utf8ToBase64(JSON.stringify(data, null, 2)), message, sha);
+}
+/* File / Blob -> 标准 base64（去掉 data: 前缀） */
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+/* 读取图片原始尺寸 */
+async function getImageSize(file) {
+  const u = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = u; });
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  } finally { URL.revokeObjectURL(u); }
+}
+/* 生成 webp 缩略图（最长边 800px） */
+async function makeThumb(file, maxEdge = 800) {
+  const u = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = u; });
+    const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("缩略图生成失败")), "image/webp", 0.85);
+    });
+  } finally { URL.revokeObjectURL(u); }
+}
+/* 把一幅作品（新增或编辑换图）写进 GitHub 仓库 */
+async function pushArtworkToGithub(item, file, editingId) {
+  const id = editingId || item.id;
+  const meta = await getImageSize(file);
+  const rawB64 = await fileToBase64(file);
+  const thumbBlob = await makeThumb(file);
+  const thumbB64 = await blobToBase64(thumbBlob);
+
+  // 上传原图 + 缩略图（覆盖式：先取 sha 再 PUT）
+  const up = await ghReadFile(`assets/uploads/${id}.webp`);
+  await ghWriteFile(`assets/uploads/${id}.webp`, rawB64, `upload image: ${item.title}`, up && up.sha);
+  const th = await ghReadFile(`assets/uploads/thumbs/${id}.webp`);
+  await ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha);
+
+  // 更新 artworks.json
+  const rec = {
+    id, title: item.title, prompt: item.prompt,
+    model: item.model || "", year: "", createdAt: item.createdAt || Date.now(),
+    file: `assets/uploads/${id}.webp`,
+    thumb: `assets/uploads/thumbs/${id}.webp`,
+    w: meta.w, h: meta.h
+  };
+  const aj = await ghReadJson("data/artworks.json");
+  const arts = aj ? aj.data.slice() : [];
+  const idx = arts.findIndex((a) => a.id === id);
+  if (idx >= 0) arts[idx] = rec; else arts.push(rec);
+  await ghWriteJson("data/artworks.json", arts, `update artworks.json: ${item.title}`, aj && aj.sha);
+
+  // 更新 dhashes.json（若有指纹）
+  if (item.dhash) {
+    const dj = await ghReadJson("data/dhashes.json");
+    const map = dj ? dj.data : {};
+    map[id] = item.dhash;
+    await ghWriteJson("data/dhashes.json", map, `update dhashes.json: ${item.id}`, dj && dj.sha);
+  }
+}
+/* 仅更新 artworks.json 中的文字字段（不改图） */
+async function updateArtworkMetaInGithub(editingId, fields) {
+  const aj = await ghReadJson("data/artworks.json");
+  if (!aj) return;
+  const arts = aj.data.slice();
+  const idx = arts.findIndex((a) => a.id === editingId);
+  if (idx < 0) return;
+  arts[idx] = Object.assign({}, arts[idx], fields);
+  await ghWriteJson("data/artworks.json", arts, `edit meta: ${editingId}`, aj.sha);
+}
+/* 从仓库删除一幅作品（图 + 缩略图 + json + dhashes） */
+async function deleteArtworkFromGithub(art) {
+  const aj = await ghReadJson("data/artworks.json");
+  if (aj) {
+    const arts = aj.data.filter((a) => a.id !== art.id);
+    await ghWriteJson("data/artworks.json", arts, `delete: ${art.title}`, aj.sha);
+  }
+  const dj = await ghReadJson("data/dhashes.json");
+  if (dj && dj.data[art.id]) {
+    delete dj.data[art.id];
+    await ghWriteJson("data/dhashes.json", dj.data, `delete dhash: ${art.id}`, dj.sha);
+  }
+  const up = await ghReadFile(`assets/uploads/${art.id}.webp`);
+  if (up) await ghRemoveFile(`assets/uploads/${art.id}.webp`, up.sha, `delete image: ${art.id}`);
+  const th = await ghReadFile(`assets/uploads/thumbs/${art.id}.webp`);
+  if (th) await ghRemoveFile(`assets/uploads/thumbs/${art.id}.webp`, th.sha, `delete thumb: ${art.id}`);
+}
+
 /* 按 createdAt 倒序：最新上传排在最前 */
 function sortArts(arr) {
   return arr.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -214,6 +394,8 @@ function applyAuth() {
   if (editToggle) editToggle.hidden = !admin;
   if (exportBtn) exportBtn.hidden = !admin;
   if (importBtn) importBtn.hidden = !admin;
+  const ghConfigBtn = document.getElementById("ghConfigBtn");
+  if (ghConfigBtn) ghConfigBtn.hidden = !admin;
 }
 
 /* 暗门：调出登录入口（URL ?admin 或 连点标题 5 次触发） */
@@ -471,6 +653,20 @@ function closeLogin() {
     importFile.value = "";
   });
 
+  /* GitHub Token 配置（仅存本浏览器 localStorage，绝不进源码） */
+  const ghConfigBtn = document.getElementById("ghConfigBtn");
+  if (ghConfigBtn) ghConfigBtn.addEventListener("click", () => {
+    if (!isAdmin()) return;
+    const cur = getGithubToken() ? "（当前已配置）" : "（当前未配置）";
+    const t = prompt(
+      `GitHub Token 配置 ${cur}\n粘贴你的 Personal Access Token（仅存本浏览器，绝不写入源码）：\n点「取消」保留现状；输入 clear 可清除。`,
+      getGithubToken()
+    );
+    if (t === null) return;
+    if (t.trim().toLowerCase() === "clear") { clearGithubToken(); alert("已清除 GitHub Token。"); return; }
+    if (t.trim()) { setGithubToken(t); alert("已保存 GitHub Token（仅存本浏览器）。"); }
+  });
+
   /* ---------- 渲染瀑布流 ---------- */
   function render() {
     grid.innerHTML = "";
@@ -635,20 +831,35 @@ function closeLogin() {
     if (!title) { alert("请填写标题"); return; }
     if (!prompt) { alert("请填写提示词（必填）。只保留有图片和对应提示词的作品。"); return; }
 
-    const item = { title, prompt, model };
+    const item = { title, prompt, model, createdAt: Date.now() };
+    let needPush = false, needMeta = false, synced = false;
 
     if (editingId) {
-      // 编辑：保留原图，除非换了文件
       const orig = artworks.find((a) => a.id === editingId);
+      item.id = editingId;
       if (file) {
-        item.id = editingId; item.blob = file; item.src = null;
+        // 编辑且换了图：重新算 dhash 防重复（排除自身）
+        try {
+          const h = await computeDHash(file);
+          const pool = Object.entries(BUILTIN_DHASHES)
+            .filter(([k]) => k !== editingId)
+            .map(([, v]) => v)
+            .concat(artworks.filter((a) => a.id !== editingId && a.dhash).map((a) => a.dhash));
+          let dup = false;
+          for (const eh of pool) {
+            if (eh && hammingHex(h, eh) <= 12) { dup = true; break; }
+          }
+          if (dup) { alert("⚠️ 该图片与现有作品高度相似，疑似重复上传，已禁止。如需替换请先删除原图再上传。"); return; }
+          item.dhash = h;
+        } catch (e) { /* 哈希失败不阻断 */ }
+        item.blob = file; item.src = null;
+        needPush = true; // 覆盖图 + 更新 json
       } else {
-        item.id = editingId;
         item.blob = orig ? orig.blob : null;
         item.src = orig ? orig.src : null;
+        item.dhash = orig ? orig.dhash : undefined;
+        needMeta = true; // 仅改文字
       }
-      // 编辑时保留原记录的「用户上传」标记，避免被剪枝误删
-      item.userUploaded = !!(orig && orig.userUploaded);
     } else {
       // 新增：必须选图
       if (!file) { alert("请选择作品图片"); return; }
@@ -665,31 +876,48 @@ function closeLogin() {
       } catch (e) { /* 哈希失败不阻断上传，仅跳过检测 */ }
       item.id = "u-" + Date.now();
       item.blob = file; item.src = null;
-      item.userUploaded = true; // 标记为「用户通过网页上传」，剪枝时跳过、永久保留
+      item.userUploaded = true;
       item.createdAt = Date.now(); // 最新时间戳 → 自动排到第一位
+      needPush = true;
     }
 
     try {
+      if (!getGithubToken()) {
+        alert("未配置 GitHub Token，作品仅暂存浏览器本地、未同步到仓库。点顶栏「⚙ 仓库」粘贴 Token 后即可同步。");
+      } else {
+        if (needPush) await pushArtworkToGithub(item, file, editingId);
+        else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model });
+        synced = true;
+      }
       await idbPut(item);
       closeEditor();
       await load();
+      alert(synced
+        ? "已保存到 GitHub 仓库（约 1 分钟后全网访客可见），本地已立即显示。"
+        : "已保存到本地（未配置 Token，未同步到仓库）。");
     } catch (err) {
       console.error(err);
-      alert("保存失败，可能是浏览器禁用了本地存储（IndexedDB）。");
+      alert("保存失败：" + (err && err.message ? err.message : err));
     }
   });
 
   /* ---------- 删除 ---------- */
   async function deleteArt(art) {
     if (!isAdmin()) return; // 仅管理员可删除
-    if (!confirm(`确定删除「${art.title}」？此操作不可撤销。`)) return;
+    if (!confirm(`确定删除「${art.title}」？此操作会同步删除 GitHub 仓库中的图片与记录，不可撤销。`)) return;
     try {
+      if (getGithubToken()) {
+        await deleteArtworkFromGithub(art);
+      } else {
+        alert("未配置 GitHub Token，仅删除本地副本。点「⚙ 仓库」配置后可同步删除仓库。");
+      }
       await idbDelete(art.id);
       addDeletedId(art.id); // 记入黑名单，防止 load() 合并补图时把它重新加回
       await load();
+      alert(getGithubToken() ? "已从 GitHub 仓库删除（约 1 分钟后全网生效）。" : "已删除本地副本（仓库未删）。");
     } catch (err) {
       console.error(err);
-      alert("删除失败。");
+      alert("删除失败：" + (err && err.message ? err.message : err));
     }
   }
 
