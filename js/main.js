@@ -28,6 +28,19 @@ async function fetchBuiltin() {
 const DB_NAME = "mopu_huanhui";
 const STORE = "artworks";
 
+/* 管理员「已删除」黑名单：持久化在 localStorage，确保删除烘焙进 json 的图后，
+   不会被 load() 的「合并补图」逻辑重新加回。 */
+const DELETED_KEY = "mopu_deleted_ids";
+function getDeletedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(DELETED_KEY) || "[]")); }
+  catch (e) { return new Set(); }
+}
+function addDeletedId(id) {
+  const s = getDeletedIds();
+  s.add(id);
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify([...s])); } catch (e) {}
+}
+
 /* 按 createdAt 倒序：最新上传排在最前 */
 function sortArts(arr) {
   return arr.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -295,9 +308,11 @@ function closeLogin() {
       // 合并：把 data/artworks.json（已烘焙的全部作品）里、本地缺失的条目补进本地库。
       // 这样以后重新部署新增的作品，访客刷新即可自动出现，无需清空浏览器。
       const builtin = await fetchBuiltin();
+      const deleted = getDeletedIds(); // 管理员已删除的 id（持久化黑名单）
       const haveIds = new Set(list.map((a) => a.id));
       let added = 0;
       for (const s of builtin) {
+        if (deleted.has(s.id)) continue; // 已删除的图不再补回
         if (!haveIds.has(s.id)) {
           await idbPut({ id: s.id, title: s.title, src: s.src, prompt: s.prompt, model: s.model, year: s.year, blob: null, createdAt: s.createdAt, thumb: s.thumb, w: s.w, h: s.h });
           added++;
@@ -309,7 +324,7 @@ function closeLogin() {
       let pruned = 0;
       for (const a of list) {
         if (a.userUploaded) continue; // 用户通过网页上传的图：永远保留，不参与剪枝
-        if (!canonicalIds.has(a.id)) {
+        if (!canonicalIds.has(a.id) || deleted.has(a.id)) {
           await idbDelete(a.id);
           pruned++;
         }
@@ -611,6 +626,7 @@ function closeLogin() {
     if (!confirm(`确定删除「${art.title}」？此操作不可撤销。`)) return;
     try {
       await idbDelete(art.id);
+      addDeletedId(art.id); // 记入黑名单，防止 load() 合并补图时把它重新加回
       await load();
     } catch (err) {
       console.error(err);
