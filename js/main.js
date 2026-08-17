@@ -303,7 +303,17 @@ function closeLogin() {
           added++;
         }
       }
-      if (added > 0 || onlyOldSeed || list.length === 0) {
+      // 剪枝：删除本地库中不在 artworks.json 里的多余条目（线上已删/去重的图），
+      // 确保本地始终与线上 json 保持一致，不会残留已清理掉的记录。
+      const canonicalIds = new Set(builtin.map((s) => s.id));
+      let pruned = 0;
+      for (const a of list) {
+        if (!canonicalIds.has(a.id)) {
+          await idbDelete(a.id);
+          pruned++;
+        }
+      }
+      if (added > 0 || onlyOldSeed || pruned > 0 || list.length === 0) {
         list = await idbGetAll();
       }
       artworks = shuffleArts(list);
