@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""对照画廊导出的完整备份(54张)与仓库 artworks.json(49张)，找出缺失的图并写回仓库。
+"""对照画廊导出的备份与仓库 artworks.json，找出缺失/编辑的图并写回仓库。
 
 用法:
-  python diff_ingest.py <path-to-mopu-huanhui-backup.json>
+  python diff_ingest.py <backup.json> [--overwrite]
 
 逻辑:
-  - 导出里 id 不在仓库中的条目 -> 视为「网页上传/缺失图」，解码写回仓库。
-  - 导出里 id 与仓库相同但 提示词/标题/图片 不一致的 -> 标记为「可能已被编辑」，仅报告、默认不覆盖（除非 --overwrite）。
+  - 导出里 id 不在仓库中的条目 -> 新图，解码写回仓库。
+  - 写回前做视觉去重：与仓库 dhashes.json 或本次其它新图汉明距离<=12 的，跳过（避免把已有的图又上传一遍）。
+  - 导出里 id 与仓库相同但 提示词/标题/图片 不一致的 -> 标记可能已编辑，默认不覆盖（--overwrite 才写入）。
   - 写回后重新生成缩略图与 dhashes.json。
 """
 import json, os, sys, base64, io, argparse
@@ -20,18 +21,28 @@ DATA = os.path.join(ROOT, "data")
 ART_JSON = os.path.join(DATA, "artworks.json")
 DHASH_JSON = os.path.join(DATA, "dhashes.json")
 SIZE = 8
+DUP_THRESHOLD = 12  # 汉明距离 <=12 视为同一张图
 
 
-def dhash(path):
-    img = Image.open(path).convert("L").resize((SIZE + 1, SIZE), Image.Resampling.LANCZOS)
-    px = list(img.getdata())
-    w = SIZE + 1
-    val = 0
+def dhash(src):
+    if isinstance(src, str):
+        img = Image.open(src)
+    else:
+        img = Image.open(io.BytesIO(src))
+    img = img.convert("L").resize((SIZE + 1, SIZE), Image.Resampling.LANCZOS)
+    px = list(img.getdata()); w = SIZE + 1; val = 0
     for y in range(SIZE):
         row = px[y * w:(y + 1) * w]
         for x in range(SIZE):
             val = (val << 1) | (1 if row[x] > row[x + 1] else 0)
     return format(val, "016x")
+
+
+def ham(a, b):
+    v = int("0x" + a, 16) ^ int("0x" + b, 16); c = 0
+    while v:
+        c += v & 1; v >>= 1
+    return c
 
 
 def decode_data_url(data_url):
@@ -63,6 +74,7 @@ def main():
     arts = json.load(open(ART_JSON, encoding="utf-8"))
     repo_by_id = {a["id"]: a for a in arts}
     repo_ids = set(repo_by_id)
+    repo_dh = json.load(open(DHASH_JSON, encoding="utf-8")) if os.path.isfile(DHASH_JSON) else {}
 
     os.makedirs(UPLOADS, exist_ok=True)
     os.makedirs(THUMBS, exist_ok=True)
@@ -82,30 +94,46 @@ def main():
             if it.get("dataUrl"):
                 try:
                     raw = decode_data_url(it["dataUrl"])
-                    h_new = dhash(io.BytesIO(raw))
-                    h_old = None
-                    fp = os.path.join(ROOT, r["file"])
-                    if os.path.isfile(fp):
-                        h_old = dhash(fp)
+                    h_new = dhash(raw)
+                    h_old = dhash(os.path.join(ROOT, r["file"])) if os.path.isfile(os.path.join(ROOT, r["file"])) else None
                     if h_new != h_old: diffs.append("image")
                 except Exception as e:
                     diffs.append(f"image(err:{e})")
             if diffs:
                 modified.append((aid, diffs, it))
 
-    print(f"导出总条数: {len(export)} | 仓库条数: {len(arts)}")
-    print(f"→ 仓库缺失(需写回): {len(new_items)} 张")
+    # 新图视觉去重：跳过与仓库已有图、或本次其它新图重复者
+    final_new, seen_dh = [], {}
     for it in new_items:
-        print(f"    + {it.get('id')}  「{it.get('title')}」  userUploaded={it.get('userUploaded')}")
+        if not it.get("dataUrl"):
+            final_new.append(it); continue
+        try:
+            raw = decode_data_url(it["dataUrl"])
+            dh = dhash(raw)
+        except Exception as e:
+            print(f"  ! {it.get('id')} 解码失败，直接写回: {e}")
+            final_new.append(it); continue
+        dup_repo = [rid for rid, rh in repo_dh.items() if ham(dh, rh) <= DUP_THRESHOLD]
+        if dup_repo:
+            print(f"  ⊘ 跳过「{it.get('title')}」({it.get('id')})：与仓库现有图视觉重复 ({dup_repo[0]})")
+            continue
+        if dh in seen_dh:
+            print(f"  ⊘ 跳过「{it.get('title')}」({it.get('id')})：与本次另一张上传视觉重复 ({seen_dh[dh]})")
+            continue
+        seen_dh[dh] = it["id"]
+        final_new.append(it)
 
+    print(f"导出总条数: {len(export)} | 仓库条数: {len(arts)}")
+    print(f"→ 候选新图: {len(new_items)} 张；去重后写回: {len(final_new)} 张；跳过重复: {len(new_items)-len(final_new)} 张")
+    for it in final_new:
+        print(f"    + {it.get('id')}  「{it.get('title')}」  userUploaded={it.get('userUploaded')}")
     if modified:
         print(f"→ 与仓库 id 相同但内容不同: {len(modified)} 张（默认不覆盖，加 --overwrite 才写入）")
         for aid, diffs, _ in modified:
             print(f"    ~ {aid}  差异: {','.join(diffs)}")
 
-    # 写回缺失的
     added = 0
-    for it in new_items:
+    for it in final_new:
         aid = it["id"]
         if not it.get("dataUrl"):
             print("跳过(无图片):", aid); continue
@@ -126,7 +154,6 @@ def main():
         arts.append(rec)
         added += 1
 
-    # --overwrite: 覆盖内容不同的
     if args.overwrite:
         for aid, diffs, it in modified:
             if not it.get("dataUrl"): continue
@@ -143,7 +170,6 @@ def main():
             })
             print(f"  ~ 已覆盖 {aid}")
 
-    # 重算 dhashes
     dhashes, missing = {}, []
     for a in arts:
         fp = os.path.join(ROOT, a["file"])
