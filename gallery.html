@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>画廊 · 茶裙画隅</title>
+  <meta name="description" content="茶裙画隅画廊 —— 一隅画廊，抹茶与女仆幻像。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="gallery">
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="返回欢迎页">
+      <span class="brand__mark">茶裙画隅</span>
+      <span class="brand__sub">Maid&rsquo;s AI Gallery</span>
+    </a>
+    <nav class="topbar__actions">
+      <div class="auth">
+        <button class="btn btn--outline" id="editToggle">✏️ 编辑</button>
+        <button class="btn btn--outline" id="loginBtn" hidden>🔑 登录</button>
+        <span class="user-chip" id="userChip" hidden>
+          <span class="user-chip__dot"></span>👤 管理员
+          <button class="btn btn--ghost" id="logoutBtn">退出</button>
+        </span>
+      </div>
+      <button class="btn btn--outline" id="exportBtn">⬇ 导出</button>
+      <button class="btn btn--outline" id="importBtn">⬆ 导入</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+      <a class="btn btn--outline" href="index.html">返回门厅</a>
+    </nav>
+  </header>
+
+  <!-- 头部 -->
+  <section class="hero">
+    <h1 class="hero__title">茶裙画隅</h1>
+    <p class="hero__slogan">一隅画廊，抹茶与女仆<span id="dreamKey">幻</span>像</p>
+    <p class="hero__meta" id="countMeta">共 0 幅作品</p>
+  </section>
+
+  <!-- 编辑模式：新增作品 -->
+  <div class="add-bar" id="addBar">
+    <button class="btn btn--outline" id="addBtn">＋ 新增作品</button>
+  </div>
+
+  <!-- 瀑布流 -->
+  <main class="grid" id="grid" aria-live="polite"></main>
+
+  <!-- 页脚 -->
+  <footer class="foot">
+    <p>茶裙画隅 &copy; 2026 · 作品存于浏览器本地（IndexedDB），可随时增删改</p>
+    <p>管理员登录后可上传 / 编辑 / 删除作品，访客仅可浏览</p>
+  </footer>
+
+  <!-- 灯箱（查看大图） -->
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="lightbox__panel" id="lightboxPanel">
+      <button class="lightbox__close" id="lbClose" aria-label="关闭">&times;</button>
+      <div class="lightbox__img"><img id="lbImg" src="" alt="" /></div>
+      <div class="lightbox__info">
+        <h2 class="lightbox__name" id="lbName"></h2>
+        <div class="lightbox__row">
+          <div class="lightbox__label">模型 / 来源</div>
+          <div class="lightbox__value" id="lbModel"></div>
+        </div>
+        <div class="lightbox__actions">
+          <button class="btn btn--outline" id="lbDownload">⬇ 下载图片</button>
+          <button class="btn btn--outline" id="lbCopy">📋 复制提示词</button>
+        </div>
+        <div class="lightbox__row">
+          <div class="lightbox__label">提示词 Prompt</div>
+          <div class="lightbox__prompt" id="lbPrompt"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑弹窗 -->
+  <div class="editor" id="editor" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="editor__panel">
+      <button class="editor__close" id="editorClose" aria-label="关闭">&times;</button>
+      <h2 class="editor__title" id="editorTitle">新增作品</h2>
+      <form id="editorForm">
+        <label class="editor__field">
+          <span>作品图片</span>
+          <input type="file" id="artFile" accept="image/*" />
+        </label>
+        <div class="editor__preview" id="artPreview"><span class="editor__ph">未选择图片</span></div>
+
+        <label class="editor__field">
+          <span>标题</span>
+          <input type="text" id="artTitle" placeholder="例如：茶田晨雾" />
+        </label>
+
+        <label class="editor__field">
+          <span>提示词 Prompt</span>
+          <textarea id="artPrompt" rows="4" placeholder="描述这张图的创作提示词…"></textarea>
+        </label>
+
+        <label class="editor__field">
+          <span>模型 / 来源</span>
+          <input type="text" id="artModel" placeholder="例如：Midjourney v6" />
+        </label>
+
+        <div class="editor__actions">
+          <button type="button" class="btn btn--outline" id="editorCancel">取消</button>
+          <button type="submit" class="btn btn--primary" id="editorSave">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 登录弹窗 -->
+  <div class="login" id="loginModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="login__panel">
+      <button class="login__close" id="loginClose" aria-label="关闭">&times;</button>
+      <h2 class="login__title">管理员登录</h2>
+      <p class="login__sub">登录后可管理作品（上传 / 编辑 / 删除）</p>
+      <form id="loginForm">
+        <label class="login__field">
+          <span>密码</span>
+          <input type="password" id="loginPwd" placeholder="请输入管理员密码" autocomplete="current-password" />
+        </label>
+        <p class="login__err" id="loginErr" hidden>密码错误，请重试</p>
+        <div class="login__actions">
+          <button type="button" class="btn btn--outline" id="loginCancel">取消</button>
+          <button type="submit" class="btn btn--primary" id="loginSubmit">登录</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

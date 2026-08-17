@@ -1,0 +1,6 @@
+# WorkBuddy 项目数据，不进仓库
+.workbuddy/
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
