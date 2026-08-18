@@ -14,9 +14,16 @@ const BUILTIN_URL = "data/artworks.json";
 /* 读取内置作品数据：图片走相对文件路径，不依赖浏览器本地库。
    带缓存破除参数，确保删除/上传后页面能及时反映仓库最新状态。 */
 async function fetchBuiltin() {
-  const resp = await fetch(BUILTIN_URL + "?t=" + Date.now());
-  if (!resp.ok) throw new Error("无法读取内置作品数据 (" + resp.status + ")");
-  const arr = await resp.json();
+  // 优先用 <script> 注入的全局快照（绕开沙箱对 fetch 的限制，也更稳健、省一次请求）；
+  // 否则回退到 fetch 读取 data/artworks.json（带缓存破除参数）。
+  let arr;
+  if (window.__BUILTIN__ && Array.isArray(window.__BUILTIN__) && window.__BUILTIN__.length) {
+    arr = window.__BUILTIN__;
+  } else {
+    const resp = await fetch(BUILTIN_URL + "?t=" + Date.now());
+    if (!resp.ok) throw new Error("无法读取内置作品数据 (" + resp.status + ")");
+    arr = await resp.json();
+  }
   return arr.map((s) => ({
     id: s.id, title: s.title, prompt: s.prompt || "", model: s.model || "",
     year: s.year || "", createdAt: s.createdAt || 0,
@@ -398,7 +405,8 @@ function getThumbSrc(art) {
    ========================================================= */
 if (document.querySelector(".welcome-page")) {
   document.body.addEventListener("click", (e) => {
-    if (e.target.closest(".auth") || e.target.closest(".login")) return; // 登录相关不触发跳转
+    if (e.target.closest(".auth") || e.target.closest(".login") ||
+        e.target.closest("#petalToggle")) return; // 登录相关 / 花瓣开关不触发跳转
     window.location.href = "gallery.html";
   });
 }
