@@ -11,6 +11,11 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="gallery">
+  <!-- 背景与氛围层 -->
+  <canvas id="bgPetals" class="bg-petals" aria-hidden="true"></canvas>
+  <div class="bg-pattern" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
   <!-- 顶栏 -->
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="返回欢迎页">
@@ -27,6 +32,7 @@
         </span>
       </div>
       <button class="btn btn--outline" id="ghConfigBtn" hidden>⚙ 仓库</button>
+      <button class="btn btn--outline" id="petalToggle" type="button" title="切换花瓣飘落动画">🌿 花瓣</button>
       <button class="btn btn--outline" id="exportBtn">⬇ 导出</button>
       <button class="btn btn--outline" id="importBtn">⬆ 导入</button>
       <input type="file" id="importFile" accept="application/json" hidden />
@@ -133,6 +139,9 @@
     </div>
   </div>
 
+  <!-- 作品数据快照：以 <script> 注入全局变量，绕开沙箱对 fetch 的限制，也更稳健 -->
+  <script src="data/artworks.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/bg.js"></script>
 </body>
 </html>
