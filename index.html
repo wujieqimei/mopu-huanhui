@@ -11,6 +11,13 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="welcome-page">
+  <!-- 背景与氛围层 -->
+  <canvas id="bgPetals" class="bg-petals" aria-hidden="true"></canvas>
+  <div class="bg-pattern" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="curtain" id="curtain" aria-hidden="true"></div>
+  <button class="petal-toggle-text" id="petalToggle" data-mode="text" type="button" aria-label="切换花瓣飘落动画">🍃 花瓣飘落：开</button>
+
   <!-- 右上角登录入口（区分访客 / 管理员） -->
   <div class="welcome-auth auth">
     <button class="btn btn--outline" id="loginBtn" hidden>🔑 登录</button>
@@ -56,5 +63,6 @@
   </div>
 
   <script src="js/main.js"></script>
+  <script src="js/bg.js"></script>
 </body>
 </html>
