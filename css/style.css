@@ -539,3 +539,96 @@ body.is-editing .card__tools { display: flex; }
 /* ==================== 载入 ==================== */
 body.gallery { animation: pageIn .5s ease both; }
 @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+
+/* =========================================================
+   背景与氛围层（茶裙画隅 · 方向①）
+   ========================================================= */
+
+/* 保证内容始终在背景层之上（花瓣画布 z-index:1，纹样/光晕 z-index:0） */
+.hero, .grid, .foot, .add-bar, .splash { position: relative; z-index: 2; }
+
+/* 飘落花瓣画布 */
+.bg-petals {
+  position: fixed; inset: 0; z-index: 1;
+  pointer-events: none;
+}
+
+/* 和风涟漪纹样（极淡双排圆点 + 茶水涟漪感） */
+.bg-pattern {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(circle at center, rgba(122,155,94,0.05) 0 1.2px, transparent 2px),
+    radial-gradient(circle at center, rgba(122,155,94,0.045) 0 1.2px, transparent 2px);
+  background-size: 46px 46px, 46px 46px;
+  background-position: 0 0, 23px 23px;
+  transition: transform .4s ease-out;
+  will-change: transform;
+}
+
+/* 顶部柔光晕（纸窗透光） */
+.bg-glow {
+  position: fixed;
+  top: -22%; left: 50%;
+  width: 120vw; height: 62vh;
+  transform: translateX(-50%);
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    rgba(255,250,235,0.72) 0%,
+    rgba(255,250,235,0.30) 42%,
+    rgba(255,250,235,0) 72%);
+  transition: transform .5s ease-out;
+  will-change: transform;
+}
+
+/* 欢迎页「推开画阁之门」晕开帷幕 */
+.curtain {
+  position: fixed; inset: 0; z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at var(--cx, 50%) var(--cy, 50%),
+    #faf8f2 0%, #d9e6c3 38%, #7a9b5e 100%);
+  clip-path: circle(0% at var(--cx, 50%) var(--cy, 50%));
+}
+.curtain.is-open {
+  opacity: 1;
+  clip-path: circle(150% at var(--cx, 50%) var(--cy, 50%));
+  transition: clip-path .74s cubic-bezier(.7,0,.25,1), opacity .35s ease;
+}
+
+/* 欢迎页底部花瓣开关（低调小字） */
+.petal-toggle-text {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  font-family: var(--font-sans);
+  font-size: 0.72rem; letter-spacing: 0.12em;
+  color: var(--matcha-700);
+  background: rgba(250,248,242,0.6);
+  border: 1px solid rgba(168,198,134,0.4);
+  border-radius: var(--r-pill);
+  padding: 7px 16px; cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.petal-toggle-text:hover { background: #fff; }
+.petal-toggle-text.is-off {
+  color: var(--ink-faint);
+  border-color: rgba(154,152,138,0.4);
+}
+
+/* 画廊顶栏花瓣开关：关闭态 */
+.btn.is-off {
+  color: var(--ink-faint);
+  border-color: rgba(154,152,138,0.4);
+  opacity: 0.8;
+}
+
+/* 尊重减少动态偏好：关闭持续动效 */
+@media (prefers-reduced-motion: reduce) {
+  .bg-pattern, .bg-glow { transition: none; }
+  .curtain.is-open { transition: opacity .3s ease; clip-path: none; }
+}
