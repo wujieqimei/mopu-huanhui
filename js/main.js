@@ -20,7 +20,10 @@ async function fetchBuiltin() {
   if (window.__BUILTIN__ && Array.isArray(window.__BUILTIN__) && window.__BUILTIN__.length) {
     arr = window.__BUILTIN__;
   } else {
-    const resp = await fetch(BUILTIN_URL + "?t=" + Date.now());
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000); // 6s 超时兜底，防慢网挂起加载链
+    const resp = await fetch(BUILTIN_URL + "?t=" + Date.now(), { signal: ctrl.signal });
+    clearTimeout(timer);
     if (!resp.ok) throw new Error("无法读取内置作品数据 (" + resp.status + ")");
     arr = await resp.json();
   }
@@ -54,9 +57,12 @@ function addDeletedId(id) {
 let BUILTIN_DHASHES = {};
 async function fetchDHashes() {
   try {
-    const r = await fetch("data/dhashes.json?t=" + Date.now());
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000); // 4s 超时兜底，防慢网挂起加载链
+    const r = await fetch("data/dhashes.json?t=" + Date.now(), { signal: ctrl.signal });
+    clearTimeout(timer);
     if (r.ok) BUILTIN_DHASHES = await r.json();
-  } catch (e) { /* 忽略：不影响正常浏览 */ }
+  } catch (e) { /* 忽略：超时/失败均不影响正常浏览 */ }
 }
 
 /* 计算文件的 dhash（与 Python 端算法一致：9x8 灰度，相邻像素差分 → 64 bit） */
