@@ -411,8 +411,10 @@ function idbDelete(id) {
 /* ---------- jsDelivr 镜像加速 ----------
    图片/静态资源优先走国内友好的 jsDelivr CDN（github.io 国内访问慢、忽快忽慢），
    加载失败由 <img onerror> 降级回相对路径（github.io 同源）。
+   注意：cdn.jsdelivr.net 对 webp 图片会 301 重定向到 raw.githubusercontent.com（国内不可达），
+   故图片统一走 gcore.jsdelivr.net（200 缓存正常）；文本资源（css/js）继续用 cdn.jsdelivr.net。
    数据文件（artworks.js / dhashes.json）不走 CDN，保持实时（jsDelivr 缓存会滞后）。 */
-const CDN_PREFIX = "https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/";
+const CDN_PREFIX = "https://gcore.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/";
 function cdnUrl(p) {
   if (!p) return p;
   if (/^(https?:|blob:|data:)/.test(p)) return p; // 绝对 URL / Blob / dataURL 不动
