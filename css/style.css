@@ -203,15 +203,14 @@ body {
   line-height: 1.9;
 }
 
-/* 欢迎页 · 中央角色装饰图 + 标题叠层 */
-.splash__body {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* 欢迎页 · 中央角色图 + 标题叠层（人物在标题后方） */
 .splash__hero {
-  max-width: min(88vw, 860px);
+  position: relative;
+  width: min(88vw, 860px);
+  margin: 0 auto;
+}
+.splash__hero-img {
+  display: block;
   width: 100%;
   height: auto;
   border-radius: 20px;
@@ -219,22 +218,20 @@ body {
   pointer-events: none;
   opacity: 0.92;
 }
-.splash__text {
+.splash__hero-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   z-index: 3;
-  padding: 18px 42px;
-  border-radius: 20px;
-  background: radial-gradient(ellipse at center, rgba(247, 245, 236, 0.96) 42%, rgba(247, 245, 236, 0) 72%);
   pointer-events: none;
 }
 
 @media (max-width: 640px) {
-  .splash__hero { max-width: 94vw; }
-  .splash__text { padding: 10px 20px; }
+  .splash__hero { width: 94vw; }
 }
 
 .splash__scroll-hint {
