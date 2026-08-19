@@ -1050,7 +1050,7 @@ function closeLogin() {
         if (needPush) await pushArtworkToGithub(item, file, editingId);
         else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model });
       }).then(() => showToast("已同步到 GitHub 仓库（约 1 分钟后全网访客可见）。"))
-        .catch((err) => showToast("本地已显示；同步 GitHub 失败：" + (err && err.message ? err.message : err) + "（检查 Token 后重新保存即可同步）", true));
+        .catch((err) => showToast("本地已显示；同步 GitHub 失败：" + (err && err.message ? err.message : err) + "（检查 Token 后点「☁ 同步」一键补推即可）", true));
     } else {
       showToast("已保存到本地（未配置 Token，未同步仓库）。点「⚙ 仓库」粘贴 Token 可同步。");
     }
