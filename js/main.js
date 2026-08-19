@@ -187,6 +187,17 @@ async function ghWriteJson(path, data, message, sha, attempt = 0) {
     throw e;
   }
 }
+/* 重建 data/artworks.js 快照（window.__BUILTIN__）。
+   fetchBuiltin() 优先读快照 —— 若只更新 artworks.json 不重建快照，
+   全新访客将永远看不到新上传的作品。转义规则与构建脚本一致（< > → \u003c \u003e）。 */
+async function rebuildArtworksJs(arts) {
+  const jsText = "window.__BUILTIN__ = " +
+    JSON.stringify(arts).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") + ";";
+  const f = await ghReadFile("data/artworks.js");
+  await ghWriteFile("data/artworks.js", utf8ToBase64(jsText),
+    "rebuild artworks.js snapshot (" + arts.length + " items)", f && f.sha);
+}
+
 /* File / Blob -> 标准 base64（去掉 data: 前缀） */
 function fileToBase64(file) {
   return new Promise((res, rej) => {
@@ -270,6 +281,8 @@ async function pushArtworkToGithub(item, file, editingId) {
   const idx = arts.findIndex((a) => a.id === id);
   if (idx >= 0) arts[idx] = rec; else arts.push(rec);
   await ghWriteJson("data/artworks.json", arts, `update artworks.json: ${item.title}`, aj && aj.sha);
+  // 重建快照，让新作品对全新访客立即可见；失败不阻断（图与 json 已成功）
+  try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
 
   // 更新 dhashes.json（若有指纹）
   if (item.dhash) {
@@ -288,6 +301,7 @@ async function updateArtworkMetaInGithub(editingId, fields) {
   if (idx < 0) return;
   arts[idx] = Object.assign({}, arts[idx], fields);
   await ghWriteJson("data/artworks.json", arts, `edit meta: ${editingId}`, aj.sha);
+  try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
 }
 /* 从仓库删除一幅作品（图 + 缩略图 + json + dhashes） */
 async function deleteArtworkFromGithub(art) {
@@ -295,6 +309,7 @@ async function deleteArtworkFromGithub(art) {
   if (aj) {
     const arts = aj.data.filter((a) => a.id !== art.id);
     await ghWriteJson("data/artworks.json", arts, `delete: ${art.title}`, aj.sha);
+    try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
   }
   const dj = await ghReadJson("data/dhashes.json");
   if (dj && dj.data[art.id]) {
@@ -455,6 +470,8 @@ function applyAuth() {
   if (importBtn) importBtn.hidden = !admin;
   const ghConfigBtn = document.getElementById("ghConfigBtn");
   if (ghConfigBtn) ghConfigBtn.hidden = !admin;
+  const syncAllBtn = document.getElementById("syncAllBtn");
+  if (syncAllBtn) syncAllBtn.hidden = !admin;
 }
 
 /* 暗门：调出登录入口（URL ?admin 或 连点标题 5 次触发） */
@@ -728,6 +745,51 @@ function closeLogin() {
     if (t === null) return;
     if (t.trim().toLowerCase() === "clear") { clearGithubToken(); alert("已清除 GitHub Token。"); return; }
     if (t.trim()) { setGithubToken(t); alert("已保存 GitHub Token（仅存本浏览器）。"); }
+  });
+
+  /* ---------- ☁ 一键补同步 ----------
+     把浏览器 IndexedDB 里有、但仓库 artworks.json 缺失的作品补进仓库。
+     覆盖两类场景：
+     a) 历史上"图已推成功、JSON 条目写失败"的半成品（有图无条的孤儿）；
+     b) 未配置 Token 时期只存了本地的上传。 */
+  const syncAllBtn = document.getElementById("syncAllBtn");
+  if (syncAllBtn) syncAllBtn.addEventListener("click", async () => {
+    if (!isAdmin()) return;
+    if (!getGithubToken()) { alert("未配置 GitHub Token。点「⚙ 仓库」粘贴 Token 后再点同步。"); return; }
+    syncAllBtn.disabled = true;
+    const origText = syncAllBtn.textContent;
+    syncAllBtn.textContent = "⏳ 同步中…";
+    try {
+      const list = await idbGetAll();
+      const deleted = getDeletedIds();
+      const aj = await ghReadJson("data/artworks.json");
+      if (!aj) throw new Error("无法读取远程 data/artworks.json");
+      const remoteIds = new Set(aj.data.map((a) => a.id));
+      const missing = list.filter((a) => a.id && a.blob && !remoteIds.has(a.id) && !deleted.has(a.id));
+      if (!missing.length) {
+        showToast("仓库已是最新，无需同步（远程共 " + remoteIds.size + " 条）。");
+        return;
+      }
+      let ok = 0, fail = 0;
+      for (const a of missing) {
+        try {
+          await ghSerialize(() => pushArtworkToGithub(
+            { id: a.id, title: a.title, prompt: a.prompt, model: a.model, createdAt: a.createdAt, dhash: a.dhash },
+            a.blob, a.id
+          ));
+          ok++;
+        } catch (e) {
+          console.error("补同步失败：", a.id, e);
+          fail++;
+        }
+      }
+      showToast("同步完成：成功 " + ok + " 幅" + (fail ? "，失败 " + fail + " 幅（稍后可重点）" : "") + "。约 1 分钟后全网可见。", fail > 0);
+    } catch (e) {
+      showToast("同步失败：" + (e && e.message ? e.message : e), true);
+    } finally {
+      syncAllBtn.disabled = false;
+      syncAllBtn.textContent = origText;
+    }
   });
 
   /* ---------- 渲染瀑布流 ---------- */
