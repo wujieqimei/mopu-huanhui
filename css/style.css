@@ -203,36 +203,38 @@ body {
   line-height: 1.9;
 }
 
-/* 欢迎页 · 女仆立绘（标题两侧） */
+/* 欢迎页 · 中央角色装饰图 + 标题叠层 */
 .splash__body {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(8px, 2vw, 20px);
 }
-.splash__text { flex-shrink: 0; }
-
-.splash__maid {
-  height: clamp(140px, 22vh, 280px);
-  width: auto;
-  opacity: 0.88;
-  animation: maidFloat 4.5s ease-in-out infinite;
-  will-change: transform;
+.splash__hero {
+  max-width: min(88vw, 860px);
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(47, 93, 58, 0.12);
   pointer-events: none;
+  opacity: 0.92;
 }
-.splash__maid--left  { mix-blend-mode: multiply; animation-delay: 0s; }
-.splash__maid--right { animation-delay: -2.25s; opacity: 1; }
-
-@keyframes maidFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-10px) scale(1.01); }
+.splash__text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 3;
+  padding: 18px 42px;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at center, rgba(247, 245, 236, 0.96) 42%, rgba(247, 245, 236, 0) 72%);
+  pointer-events: none;
 }
 
 @media (max-width: 640px) {
-  .splash__maid { height: clamp(90px, 16vh, 160px); opacity: 0.7; }
-}
-@media (max-width: 420px) {
-  .splash__maid { display: none; }
+  .splash__hero { max-width: 94vw; }
+  .splash__text { padding: 10px 20px; }
 }
 
 .splash__scroll-hint {
