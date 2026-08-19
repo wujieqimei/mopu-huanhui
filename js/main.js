@@ -408,16 +408,27 @@ function idbDelete(id) {
   }));
 }
 
+/* ---------- jsDelivr 镜像加速 ----------
+   图片/静态资源优先走国内友好的 jsDelivr CDN（github.io 国内访问慢、忽快忽慢），
+   加载失败由 <img onerror> 降级回相对路径（github.io 同源）。
+   数据文件（artworks.js / dhashes.json）不走 CDN，保持实时（jsDelivr 缓存会滞后）。 */
+const CDN_PREFIX = "https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/";
+function cdnUrl(p) {
+  if (!p) return p;
+  if (/^(https?:|blob:|data:)/.test(p)) return p; // 绝对 URL / Blob / dataURL 不动
+  return CDN_PREFIX + p.replace(/^\.\//, "");
+}
+
 /* 取一条作品的可用图片地址（路径直接用，Blob 临时生成 objectURL） */
 function getSrc(art) {
-  if (art.src) return art.src;
+  if (art.src) return cdnUrl(art.src);
   if (art.blob) return URL.createObjectURL(art.blob);
   return "";
 }
 
 /* 列表卡片用缩略图（体积小、首屏快）；无缩略图时退回原图/原 Blob */
 function getThumbSrc(art) {
-  if (art.thumb) return art.thumb;
+  if (art.thumb) return cdnUrl(art.thumb);
   return getSrc(art);
 }
 
@@ -810,7 +821,9 @@ function closeLogin() {
       card.style.animationDelay = (idx * 60) + "ms";
       const dims = (art.w && art.h) ? ` width="${art.w}" height="${art.h}"` : "";
       card.innerHTML = `
-        <img class="card__img" src="${getThumbSrc(art)}" alt="${art.title}" loading="lazy"${dims} />
+        <img class="card__img" src="${getThumbSrc(art)}" alt="${art.title}" loading="lazy"${dims}
+             data-fb="${art.thumb || art.file || ''}"
+             onerror="this.onerror=null;this.src=this.dataset.fb" />
         <div class="card__overlay">
           <div class="card__name">${art.title}</div>
           <div class="card__prompt">${art.prompt || ""}</div>
@@ -841,6 +854,7 @@ function closeLogin() {
   function openLightbox(art) {
     currentArt = art;
     lbImg.src = getSrc(art);
+    lbImg.onerror = () => { lbImg.onerror = null; lbImg.src = art.file || art.src || ""; };
     lbImg.alt = art.title;
     lbName.textContent = art.title;
     lbModel.textContent = art.model || "—";
