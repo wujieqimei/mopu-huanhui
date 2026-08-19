@@ -140,9 +140,11 @@
     </div>
   </div>
 
-  <!-- 作品数据快照：以 <script> 注入全局变量，绕开沙箱对 fetch 的限制，也更稳健 -->
-  <script src="data/artworks.js"></script>
-  <script src="js/main.js"></script>
-  <script src="js/bg.js"></script>
+  <!-- 作品数据快照：以 <script> 注入全局变量，绕开沙箱对 fetch 的限制，也更稳健。
+       defer：不阻塞首屏渲染——页面骨架先显示，脚本按序在 DOM 解析后执行，
+       避免 github.io 响应慢时出现长时间白屏/转圈。 -->
+  <script src="data/artworks.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/bg.js" defer></script>
 </body>
 </html>
