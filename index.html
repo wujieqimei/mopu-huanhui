@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/css/style.css" onerror="this.onerror=null;this.href='css/style.css'" />
 </head>
 <body class="welcome-page">
   <!-- 背景与氛围层 -->
@@ -32,13 +32,15 @@
     <p class="splash__nav">🖼 AI 绘画 · 作品分享画廊</p>
 
     <div class="splash__body">
-      <img src="assets/maids/maid-left.webp" alt="" class="splash__maid splash__maid--left" aria-hidden="true" />
+      <img src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-left.webp" alt="" class="splash__maid splash__maid--left" aria-hidden="true"
+           onerror="this.onerror=null;this.src='assets/maids/maid-left.webp'" />
       <div class="splash__text">
         <h1 class="splash__title">茶裙画隅</h1>
         <p class="splash__slogan">一隅画廊，抹茶与女仆<span id="dreamKey">幻</span>像</p>
         <p class="splash__hint">轻触任意处，推开画阁之门</p>
       </div>
-      <img src="assets/maids/maid-right.webp" alt="" class="splash__maid splash__maid--right" aria-hidden="true" />
+      <img src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-right.webp" alt="" class="splash__maid splash__maid--right" aria-hidden="true"
+           onerror="this.onerror=null;this.src='assets/maids/maid-right.webp'" />
     </div>
 
     <div class="splash__scroll-hint" aria-hidden="true">
@@ -66,7 +68,10 @@
     </div>
   </div>
 
-  <script src="js/main.js"></script>
-  <script src="js/bg.js"></script>
+  <!-- 静态资源走 jsDelivr 加速；失败时 onerror 自动降级回相对路径（github.io） -->
+  <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/main.js"
+          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/main.js';document.body.appendChild(s);})();"></script>
+  <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js"
+          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/bg.js';document.body.appendChild(s);})();"></script>
 </body>
 </html>
