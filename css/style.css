@@ -215,14 +215,13 @@ body {
 .splash__maid {
   height: clamp(140px, 22vh, 280px);
   width: auto;
-  mix-blend-mode: multiply;
   opacity: 0.88;
   animation: maidFloat 4.5s ease-in-out infinite;
   will-change: transform;
   pointer-events: none;
 }
-.splash__maid--left  { animation-delay: 0s; }
-.splash__maid--right { animation-delay: -2.25s; }
+.splash__maid--left  { mix-blend-mode: multiply; animation-delay: 0s; }
+.splash__maid--right { animation-delay: -2.25s; opacity: 1; }
 
 @keyframes maidFloat {
   0%, 100% { transform: translateY(0) scale(1); }
