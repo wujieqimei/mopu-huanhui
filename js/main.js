@@ -248,6 +248,23 @@ async function makeThumb(file, maxEdge = 800) {
     return { blob, w: img.naturalWidth, h: img.naturalHeight };
   } finally { URL.revokeObjectURL(u); }
 }
+
+/* 把上传原图重编码为 webp q92（与原图视觉一致，但规范扩展名、体积更小、与基线一致） */
+async function encodeOriginalWebp(file) {
+  const u = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = u; });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext("2d").drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("原图编码失败")), "image/webp", 0.92);
+    });
+    return await blobToBase64(blob);
+  } finally { URL.revokeObjectURL(u); }
+}
+
 /* 串行化所有 GitHub 写操作，避免连传多张时 artworks.json/dhashes.json 并发 409 冲突产生孤儿文件 */
 let _ghChain = Promise.resolve();
 function ghSerialize(task) {
@@ -261,7 +278,7 @@ async function pushArtworkToGithub(item, file, editingId) {
   const id = editingId || item.id;
   // 生成缩略图（同时拿到原始尺寸）+ 原图 base64
   const thumb = await makeThumb(file);
-  const rawB64 = await fileToBase64(file);
+  const origB64 = await encodeOriginalWebp(file);   // 全尺寸重编码为 webp q92，统一格式/体积
   const thumbB64 = await blobToBase64(thumb.blob);
 
   // 原图与缩略图相互独立：并行读取 sha，再并行 PUT，缩短整体耗时
@@ -270,7 +287,7 @@ async function pushArtworkToGithub(item, file, editingId) {
     ghReadFile(`assets/uploads/thumbs/${id}.webp`)
   ]);
   await Promise.all([
-    ghWriteFile(`assets/uploads/${id}.webp`, rawB64, `upload image: ${item.title}`, up && up.sha),
+    ghWriteFile(`assets/uploads/${id}.webp`, origB64, `upload image: ${item.title}`, up && up.sha),
     ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha)
   ]);
 
