@@ -754,5 +754,17 @@
     "thumb": "assets/uploads/thumbs/u-1787201211100.webp",
     "w": 1086,
     "h": 1448
+  },
+  {
+    "id": "u-1787211312598",
+    "title": "室内",
+    "prompt": "室内使用柔和的暖白色环境光，门缝外透入偏冷的自然日光，形成自然、克制的冷暖色温对比。柔和侧逆光轻轻勾勒人物的头发、肩背、腰部、手臂与腿部轮廓，皮肤高光自然细腻，不过曝，不产生塑料感；阴影柔和且具有丰富层次，木门与室内暗部保留真实纹理和细节。\n\n真实摄影色彩科学，细腻动态范围，自然白平衡，柔和高光过渡，真实肤色与皮肤纹理，细微毛孔与自然肌理，真实布料纤维与褶皱，轻微手机相机锐化质感，适度浅景深，真实空间透视。\n\nphotorealistic, ultra realistic, natural anatomy, candid lifestyle photography, low-angle rear three-quarter view, subtle Dutch angle, 28mm wide-angle lens, realistic indoor lighting, soft warm-white ambient light, cool natural daylight through the door gap, natural warm-cool contrast, soft rim light, realistic skin texture, realistic fabric texture, high dynamic range, subtle depth of field, authentic photographic color science, high detail, clean composition, no text, no watermark, no logo.",
+    "model": "",
+    "year": "",
+    "createdAt": 1787211312598,
+    "file": "assets/uploads/u-1787211312598.webp",
+    "thumb": "assets/uploads/thumbs/u-1787211312598.webp",
+    "w": 1023,
+    "h": 1537
   }
 ]
