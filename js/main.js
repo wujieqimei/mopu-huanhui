@@ -843,10 +843,9 @@ function closeLogin() {
         <img class="card__img" src="${getThumbSrc(art)}" alt="${art.title}" loading="lazy"${dims}
              data-fb="${art.thumb || art.file || ''}"
              onerror="this.onerror=null;this.src=this.dataset.fb" />
-        <div class="card__overlay">
-          <div class="card__name">${art.title}</div>
+        <div class="card__cap">
+          <div class="card__title">${art.title}</div>
           <div class="card__prompt">${art.prompt || ""}</div>
-          <span class="card__tag">${art.model || "AI 作品"}</span>
         </div>
         <div class="card__tools">
           <button class="card__tool" data-act="edit" title="编辑">✏️</button>
