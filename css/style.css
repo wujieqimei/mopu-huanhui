@@ -364,8 +364,18 @@ body.is-editing .add-bar { display: flex; }
   animation: cardIn .55s ease both;
 }
 @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-.card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
-.card__img { width: 100%; height: auto; display: block; }
+.card:hover { transform: translateY(-7px); box-shadow: 0 22px 46px rgba(47,93,58,0.32); }
+.card__img { width: 100%; height: auto; display: block; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.card:hover .card__img { transform: scale(1.06); }
+/* 悬停聚光层（#3）：一团柔光跟随光标，soft-light 混合不刺眼，仅覆盖图区 */
+.card__media { position: relative; overflow: hidden; }
+.card__spot {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(200px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.30), rgba(255,255,255,0) 62%);
+  mix-blend-mode: soft-light;
+  transition: opacity .3s ease;
+}
+.card:hover .card__spot { opacity: 1; }
 /* 常驻标题条（B）：底部抹茶渐变条常显作品名，悬停上浮展开提示词；已去除模型小标签 */
 .card__cap {
   position: absolute; left: 0; right: 0; bottom: 0;
