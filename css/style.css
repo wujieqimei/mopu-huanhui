@@ -367,12 +367,14 @@ body.is-editing .add-bar { display: flex; }
 .card:hover { transform: translateY(-7px); box-shadow: 0 22px 46px rgba(47,93,58,0.32); }
 .card__img { width: 100%; height: auto; display: block; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
 .card:hover .card__img { transform: scale(1.06); }
-/* 悬停聚光层（#3）：一团柔光跟随光标，soft-light 混合不刺眼，仅覆盖图区 */
+/* 悬停聚光层（#3）：柔和光斑跟随光标——中心提亮 + 外圈轻微压暗，形成清晰可读的"聚光"感；
+   改用 normal 混合（去掉 soft-light），保证在浅色/米白图上也清晰可见 */
 .card__media { position: relative; overflow: hidden; }
 .card__spot {
   position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(200px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.30), rgba(255,255,255,0) 62%);
-  mix-blend-mode: soft-light;
+  background:
+    radial-gradient(190px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.40), rgba(255,255,255,0) 58%),
+    radial-gradient(440px circle at var(--mx,50%) var(--my,50%), rgba(0,0,0,0) 60%, rgba(18,32,20,0.26) 100%);
   transition: opacity .3s ease;
 }
 .card:hover .card__spot { opacity: 1; }
