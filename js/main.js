@@ -840,9 +840,12 @@ function closeLogin() {
       card.style.animationDelay = (idx * 60) + "ms";
       const dims = (art.w && art.h) ? ` width="${art.w}" height="${art.h}"` : "";
       card.innerHTML = `
-        <img class="card__img" src="${getThumbSrc(art)}" alt="${art.title}" loading="lazy"${dims}
-             data-fb="${art.thumb || art.file || ''}"
-             onerror="this.onerror=null;this.src=this.dataset.fb" />
+        <div class="card__media">
+          <img class="card__img" src="${getThumbSrc(art)}" alt="${art.title}" loading="lazy"${dims}
+               data-fb="${art.thumb || art.file || ''}"
+               onerror="this.onerror=null;this.src=this.dataset.fb" />
+          <div class="card__spot"></div>
+        </div>
         <div class="card__cap">
           <div class="card__title">${art.title}</div>
           <div class="card__prompt">${art.prompt || ""}</div>
@@ -851,6 +854,13 @@ function closeLogin() {
           <button class="card__tool" data-act="edit" title="编辑">✏️</button>
           <button class="card__tool card__tool--del" data-act="del" title="删除">🗑</button>
         </div>`;
+
+      // 悬停聚光（#3 微交互）：光标坐标写入 CSS 变量，供 .card__spot 柔光跟随
+      card.addEventListener("mousemove", (e) => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty("--mx", ((e.clientX - r.left) / r.width) * 100 + "%");
+        card.style.setProperty("--my", ((e.clientY - r.top) / r.height) * 100 + "%");
+      });
 
       // 非编辑：看大图；编辑：打开编辑表单
       card.addEventListener("click", () => {
