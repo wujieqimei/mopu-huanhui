@@ -24,20 +24,25 @@
       <span class="brand__sub">Maid&rsquo;s AI Gallery</span>
     </a>
     <nav class="topbar__actions">
-      <div class="auth">
-        <button class="btn btn--outline" id="editToggle">✏️ 编辑</button>
-        <button class="btn btn--outline" id="loginBtn" hidden>🔑 登录</button>
-        <span class="user-chip" id="userChip" hidden>
-          <span class="user-chip__dot"></span>👤 管理员
-          <button class="btn btn--ghost" id="logoutBtn">退出</button>
-        </span>
-      </div>
-      <button class="btn btn--outline" id="ghConfigBtn" hidden>⚙ 仓库</button>
-      <button class="btn btn--outline" id="syncAllBtn" hidden title="把浏览器里有、仓库缺失的作品一键补同步">☁ 同步</button>
       <button class="btn btn--outline" id="petalToggle" type="button" title="切换花瓣飘落动画">🌿 花瓣</button>
-      <button class="btn btn--outline" id="exportBtn">⬇ 导出</button>
-      <button class="btn btn--outline" id="importBtn">⬆ 导入</button>
-      <input type="file" id="importFile" accept="application/json" hidden />
+      <div class="mgmt">
+        <button class="btn btn--outline mgmt__btn" id="mgmtToggle" type="button" aria-haspopup="true" aria-expanded="false">☰ 管理</button>
+        <div class="mgmt__menu" id="mgmtMenu" hidden>
+          <div class="auth">
+            <button class="btn btn--outline" id="editToggle">✏️ 编辑</button>
+            <button class="btn btn--outline" id="loginBtn" hidden>🔑 登录</button>
+            <span class="user-chip" id="userChip" hidden>
+              <span class="user-chip__dot"></span>👤 管理员
+              <button class="btn btn--ghost" id="logoutBtn">退出</button>
+            </span>
+          </div>
+          <button class="btn btn--outline" id="ghConfigBtn" hidden>⚙ 仓库</button>
+          <button class="btn btn--outline" id="syncAllBtn" hidden title="把浏览器里有、仓库缺失的作品一键补同步">☁ 同步</button>
+          <button class="btn btn--outline" id="exportBtn">⬇ 导出</button>
+          <button class="btn btn--outline" id="importBtn">⬆ 导入</button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+      </div>
       <a class="btn btn--outline" href="index.html">返回门厅</a>
     </nav>
   </header>
@@ -150,5 +155,24 @@
           onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/main.js';document.body.appendChild(s);})();"></script>
   <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js" defer
           onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/bg.js';document.body.appendChild(s);})();"></script>
+
+  <!-- 顶栏「☰ 管理」下拉：与加载/同步链路解耦，独立开关 -->
+  <script>
+  (function () {
+    var btn = document.getElementById("mgmtToggle");
+    var menu = document.getElementById("mgmtMenu");
+    if (!btn || !menu) return;
+    function close() { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      menu.hidden = !menu.hidden;
+      btn.setAttribute("aria-expanded", String(!menu.hidden));
+    });
+    document.addEventListener("click", function (e) {
+      if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  })();
+  </script>
 </body>
 </html>
