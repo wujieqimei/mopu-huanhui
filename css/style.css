@@ -284,12 +284,6 @@ body {
 .brand__sub { font-size: 0.68rem; letter-spacing: 0.2em; color: var(--ink-faint); text-transform: uppercase; }
 
 .topbar__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-/* 视图切换（分段控件，与 .btn 视觉统一） */
-.viewseg { display: inline-flex; border: 1.5px solid rgba(168,198,134,.6); border-radius: var(--r-pill); overflow: hidden; background: #fff; box-shadow: var(--shadow-sm); transition: transform .25s ease, box-shadow .25s ease; }
-.viewseg:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.viewseg__btn { border: 0; background: transparent; color: var(--ink-soft); font-family: var(--font-sans); font-size: .84rem; letter-spacing: .08em; padding: 10px 16px; cursor: pointer; transition: background .2s, color .2s; }
-.viewseg__btn + .viewseg__btn { border-left: 1.5px solid rgba(168,198,134,.5); }
-.viewseg__btn.is-active { background: var(--matcha-500); color: #fff; }
 
 /* 管理下拉：把低频管理动作收进 ☰ 管理，顶栏常驻仅留 花瓣 / 管理 / 返回门厅 */
 .mgmt { position: relative; }
@@ -352,45 +346,6 @@ body.is-editing .add-bar { display: flex; }
 @media (max-width: 1200px) { .grid { column-count: 3; } }
 @media (max-width: 820px)  { .grid { column-count: 2; } }
 @media (max-width: 520px)  { .grid { column-count: 1; } }
-
-/* ===== 视图切换：长卷 / 暗房墙（纯展示层，对 .card 重排，不碰 JS 渲染） ===== */
-/* 长卷：横向滚动，图按原比例铺成一条 */
-body[data-view="scroll"] .grid {
-  column-count: auto;
-  display: flex; flex-direction: row; flex-wrap: nowrap;
-  overflow-x: auto; overflow-y: hidden;
-  align-items: center;
-  height: calc(100vh - 170px);
-  gap: 10px; padding: 22px clamp(16px, 4vw, 48px);
-  scroll-behavior: smooth;
-}
-body[data-view="scroll"] .card {
-  height: 72%; width: auto; flex: 0 0 auto; margin: 0;
-  display: inline-flex; border-radius: 8px;
-}
-body[data-view="scroll"] .card__media { height: 100%; }
-body[data-view="scroll"] .card__img { height: 100%; width: auto; }
-body[data-view="scroll"] .card:hover { transform: translateY(-8px); }
-
-/* 暗房墙：12 列密集网格，默认未显影(暗房)，悬停即显影 */
-body[data-view="mosaic"] .grid {
-  column-count: auto;
-  display: grid; grid-template-columns: repeat(12, 1fr);
-  gap: 3px; padding: 14px clamp(10px, 3vw, 30px);
-}
-body[data-view="mosaic"] .card {
-  margin: 0; break-inside: auto; aspect-ratio: 1; border-radius: 3px; overflow: hidden;
-}
-body[data-view="mosaic"] .card__media { height: 100%; }
-body[data-view="mosaic"] .card__img {
-  height: 100%; width: 100%; object-fit: cover;
-  filter: grayscale(.75) brightness(.55) contrast(1.15);
-  transition: filter .5s ease, transform .5s ease;
-}
-body[data-view="mosaic"] .card:hover { transform: none; }
-body[data-view="mosaic"] .card:hover .card__img { filter: none; transform: scale(1.1); }
-body[data-view="mosaic"] .card__cap { display: none; }
-body[data-view="mosaic"] .card__spot { display: none; }
 
 .card {
   position: relative;
