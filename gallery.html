@@ -43,6 +43,10 @@
           <input type="file" id="importFile" accept="application/json" hidden />
         </div>
       </div>
+      <div class="density" id="densityToggle" role="group" aria-label="密度切换">
+        <button type="button" class="density__btn is-active" data-d="cozy" aria-pressed="true">舒适</button>
+        <button type="button" class="density__btn" data-d="compact" aria-pressed="false">紧凑</button>
+      </div>
       <a class="btn btn--outline" href="index.html">返回门厅</a>
     </nav>
   </header>
@@ -172,6 +176,29 @@
       if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close();
     });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  })();
+
+  /* 密度切换：与加载/同步链路解耦，独立开关，偏好存 localStorage */
+  (function () {
+    var KEY = "mopu_density";
+    var wrap = document.getElementById("densityToggle");
+    if (!wrap) return;
+    var btns = wrap.querySelectorAll(".density__btn");
+    function apply(mode) {
+      var compact = mode === "compact";
+      document.body.classList.toggle("is-compact", compact);
+      Array.prototype.forEach.call(btns, function (b) {
+        var on = b.dataset.d === mode;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+    }
+    apply(localStorage.getItem(KEY) || "cozy");
+    wrap.addEventListener("click", function (e) {
+      var b = e.target.closest(".density__btn"); if (!b) return;
+      apply(b.dataset.d);
+      try { localStorage.setItem(KEY, b.dataset.d); } catch (e) {}
+    });
   })();
   </script>
 </body>
