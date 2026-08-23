@@ -43,6 +43,11 @@
           <input type="file" id="importFile" accept="application/json" hidden />
         </div>
       </div>
+      <div class="viewseg" id="viewSeg" role="group" aria-label="视图切换">
+        <button type="button" class="viewseg__btn is-active" data-v="flow" aria-pressed="true">瀑布</button>
+        <button type="button" class="viewseg__btn" data-v="scroll" aria-pressed="false">长卷</button>
+        <button type="button" class="viewseg__btn" data-v="mosaic" aria-pressed="false">暗房墙</button>
+      </div>
       <a class="btn btn--outline" href="index.html">返回门厅</a>
     </nav>
   </header>
@@ -172,6 +177,28 @@
       if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close();
     });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  })();
+
+  /* 视图切换：瀑布 / 长卷 / 暗房墙 —— 纯展示层，不碰加载/同步链路，偏好存 localStorage */
+  (function () {
+    var KEY = "mopu_view";
+    var seg = document.getElementById("viewSeg");
+    if (!seg) return;
+    var btns = seg.querySelectorAll(".viewseg__btn");
+    function apply(v) {
+      document.body.dataset.view = v;
+      Array.prototype.forEach.call(btns, function (b) {
+        var on = b.dataset.v === v;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+    }
+    apply(localStorage.getItem(KEY) || "flow");
+    seg.addEventListener("click", function (e) {
+      var b = e.target.closest(".viewseg__btn"); if (!b) return;
+      apply(b.dataset.v);
+      try { localStorage.setItem(KEY, b.dataset.v); } catch (_) {}
+    });
   })();
   </script>
 </body>
