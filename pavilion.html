@@ -47,16 +47,23 @@
   .subtitle{color:#6b6a63; font-size:14px}
   .subtitle a{color:var(--matcha-bright); text-decoration:none; border-bottom:1px dashed rgba(91,154,68,.5)}
   .divider{width:120px; height:1px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--matcha),transparent)}
-  /* 顶栏入口 */
-  .pav-nav{display:flex; gap:10px; justify-content:center; margin:2px 0 2px; flex-wrap:wrap}
-  .pav-nav a{
-    font-family:var(--sans); font-size:13px; text-decoration:none; cursor:pointer;
-    padding:8px 18px; border-radius:999px; border:1px solid rgba(111,174,90,.6);
-    background:rgba(255,255,255,.6); color:var(--matcha-deep); transition:.15s;
+  /* 顶部导航（优雅文字链接，融入抹茶调性） */
+  .pav-nav{
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    margin-bottom:18px; font-family:var(--serif); font-size:12px;
+    letter-spacing:.2em; color:#9a987f;
   }
-  .pav-nav a:hover{background:rgba(111,174,90,.14)}
-  .pav-nav a.primary{background:var(--matcha-deep); color:#fff; border-color:var(--matcha-deep)}
-  .pav-nav a.primary:hover{background:var(--matcha-bright)}
+  .pav-nav a{
+    color:var(--matcha-deep); text-decoration:none; opacity:.75; transition:opacity .2s, color .2s;
+    padding:4px 10px; position:relative;
+  }
+  .pav-nav a:hover{opacity:1; color:var(--matcha-bright)}
+  .pav-nav a::after{
+    content:''; position:absolute; bottom:0; left:50%; width:0; height:1px;
+    background:var(--matcha-bright); transition:width .25s ease; transform:translateX(-50%);
+  }
+  .pav-nav a:hover::after{width:60%}
+  .pav-nav .nav-sep{opacity:.35; font-size:10px}
 
 
   /* ===== 漫游走廊 ===== */
@@ -173,8 +180,9 @@
 
 <header class="top">
   <nav class="pav-nav">
-    <a href="index.html?_t=20260830">← 返回门厅</a>
-    <a href="gallery.html" class="primary">🖼 浏览全部作品</a>
+    <a href="index.html?_t=20260830">返回门厅</a>
+    <span class="nav-sep">·</span>
+    <a href="gallery.html">浏览全部作品</a>
   </nav>
   <div class="brand-row">
     <svg class="leaf-logo" viewBox="0 0 32 32" aria-hidden="true">
