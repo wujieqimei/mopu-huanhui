@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>茶裙画隅 · 一隅画廊，抹茶与女仆幻像</title>
   <meta name="description" content="茶裙画隅 —— 一隅画廊，抹茶与女仆幻像。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -74,5 +77,15 @@
           onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/main.js';document.body.appendChild(s);})();"></script>
   <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js?v=20260830a"
           onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/bg.js';document.body.appendChild(s);})();"></script>
+  <script>
+    // 欢迎页直接进入「画阁漫游」——内联实现，彻底不依赖外部 main.js 跳转，避免 CDN 缓存导致跳错页
+    (function () {
+      if (!document.querySelector(".welcome-page")) return;
+      document.body.addEventListener("click", function (e) {
+        if (e.target.closest(".auth") || e.target.closest(".login") || e.target.closest("#petalToggle")) return;
+        window.location.href = "pavilion.html";
+      });
+    })();
+  </script>
 </body>
 </html>
