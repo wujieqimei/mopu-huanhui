@@ -151,14 +151,8 @@
     border-left:2px solid rgba(111,174,90,.25); padding:8px 0 8px 14px; margin-top:1em;
   }
 
-  /* 复制提示词（移到物语底部，小巧） */
-  .lb-copy-row{margin-top:14px; padding-top:12px; border-top:1px solid rgba(111,174,90,.12); display:flex; align-items:center; justify-content:space-between}
-  .lb-copy-btn{
-    font-family:var(--sans); font-size:11.5px; cursor:pointer; border-radius:999px;
-    padding:5px 14px; border:1px solid rgba(111,174,90,.4); background:transparent; color:var(--matcha-deep);
-    transition:.15s; letter-spacing:.05em;
-  }
-  .lb-copy-btn:hover{background:rgba(111,174,90,.08)}
+  /* 计数器（物语底部，靠右） */
+  .lb-copy-row{margin-top:14px; padding-top:12px; border-top:1px solid rgba(111,174,90,.12); display:flex; align-items:center; justify-content:flex-end}
   .lb-counter{font-size:11px; color:#b0aeA5; letter-spacing:.08em}
 
   .lb-close{position:absolute; top:12px; right:14px; font-size:24px; color:rgba(255,255,255,.55); cursor:pointer; z-index:20; line-height:1; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s}
@@ -225,7 +219,6 @@
       <div class="lb-story-label">女 仆 物 语</div>
       <div class="lb-story" id="lbStory"></div>
       <div class="lb-copy-row">
-        <button class="lb-copy-btn" id="lbCopy">📋 复制提示词</button>
         <span class="lb-counter" id="lbCounter">1 / 81</span>
       </div>
     </div>
@@ -474,25 +467,6 @@
   });
   document.getElementById('lbPrev').addEventListener('click', goPrev);
   document.getElementById('lbNext').addEventListener('click', goNext);
-
-  /* 复制提示词 */
-  document.getElementById('lbCopy').addEventListener('click', function(){
-    var t = (arts[cur].prompt || '');
-    if(!t){ return; }
-    var btn = this;
-    var o = btn.textContent;
-    btn.textContent = '已复制 ✓';
-    setTimeout(function(){ btn.textContent = o; }, 1400);
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(t).catch(function(){ fallbackCopy(t); });
-    } else { fallbackCopy(t); }
-  });
-  function fallbackCopy(text){
-    var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); }catch(e){}
-    document.body.removeChild(ta);
-  }
 })();
 </script>
 </body>
