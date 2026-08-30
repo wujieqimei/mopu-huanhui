@@ -22,29 +22,25 @@
     }
     .splash:hover .splash__title{opacity:.9}
 
-    /* 女仆斟茶过渡层 */
+    /* 女仆斟茶过渡层（全屏背景图铺满） */
     .tea-transition{
       position:fixed; inset:0; z-index:9999;
       display:flex; align-items:center; justify-content:center;
-      background:linear-gradient(135deg, #1a3a24 0%, #2f5d3a 40%, #f7f5ec 100%);
+      background:
+        linear-gradient(to bottom, rgba(26,58,36,.35) 0%, rgba(26,58,36,.15) 40%, rgba(247,245,236,.25) 100%),
+        url('assets/maids/maid-tea.webp') center/cover no-repeat;
       opacity:0; pointer-events:none;
       transition:opacity .6s ease;
     }
     .tea-transition.is-active{ opacity:1; pointer-events:auto }
-    .tea-inner{ text-align:center; padding:40px 24px }
-    .tea-maid-img{
-      max-height:65vh; max-width:90vw;
-      object-fit:contain; border-radius:12px;
-      box-shadow:0 8px 32px rgba(0,0,0,.25);
-      animation:teaScaleIn .8s ease-out both;
-    }
     .tea-caption{
-      font-family:'Noto Serif SC',serif; font-size:15px;
-      color:#c9e4cf; margin-top:20px; letter-spacing:.15em;
+      font-family:'Noto Serif SC',serif; font-size:18px;
+      color:#f7f5ec; margin-top:0; letter-spacing:.2em;
+      text-shadow:0 2px 12px rgba(0,0,0,.45);
       animation:teaFadeUp .8s ease .3s both;
+      position:relative; z-index:1;
     }
-    @keyframes teaScaleIn{ from{ transform:scale(.88); opacity:0 } to{ transform:scale(1); opacity:1 } }
-    @keyframes teaFadeUp{ from{ transform:translateY(12px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
+    @keyframes teaFadeUp{ from{ transform:translateY(16px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
   </style>
   <script>
     /* 从 bfcache（前进/后退缓存）恢复时强制刷新，确保欢迎页锚点始终为最新、可整屏点击进入 */
@@ -80,12 +76,9 @@
     </div>
   </a>
 
-  <!-- 女仆斟茶过渡层（点击欢迎页后显示，约 2.6s 后自动进入画阁漫游） -->
+  <!-- 女仆斟茶过渡层（点击欢迎页后全屏显示，约 2.6s 后自动进入画阁漫游） -->
   <div class="tea-transition" id="teaTransition" aria-hidden="true">
-    <div class="tea-inner">
-      <img class="tea-maid-img" src="assets/maids/maid-tea.webp" alt="女仆斟茶" />
-      <p class="tea-caption">正在为您斟茶…</p>
-    </div>
+    <p class="tea-caption">正在为您斟茶…</p>
   </div>
 
   <!-- 仅加载背景动画（bg.js，同源相对路径，绕过 jsDelivr 缓存滞后），不加载 main.js -->
