@@ -458,7 +458,7 @@ if (document.querySelector(".welcome-page")) {
   document.body.addEventListener("click", (e) => {
     if (e.target.closest(".auth") || e.target.closest(".login") ||
         e.target.closest("#petalToggle")) return; // 登录相关 / 花瓣开关不触发跳转
-    window.location.href = "gallery.html";
+    window.location.href = "pavilion.html";
   });
 }
 
