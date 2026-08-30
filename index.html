@@ -1,128 +1,54 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<title>茶裙画隅</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  :root{
-    --matcha-deep:#2f5d3a; --matcha:#6fae5a; --matcha-bright:#5b9a44;
-    --cream:#f7f5ec; --gold:#c9a86a;
-    --serif:"Noto Serif SC",serif; --sans:"Noto Sans SC",system-ui,sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    font-family:var(--sans); color:var(--matcha-deep);
-    background:
-      radial-gradient(1000px 560px at 82% -8%, rgba(111,174,90,.22), transparent 60%),
-      radial-gradient(820px 480px at -8% 110%, rgba(201,168,106,.18), transparent 60%),
-      var(--cream);
-    overflow:hidden;
-  }
-  /* 花瓣飘落（自包含，独立于任何外部脚本） */
-  #petals{position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden}
-  #petals span{
-    position:absolute; top:-8%; width:14px; height:14px; opacity:0;
-    background:radial-gradient(circle at 30% 30%, #b6d8a4, var(--matcha));
-    border-radius:0 70% 0 70%;
-    animation:fall linear infinite;
-  }
-  @keyframes fall{
-    0%{transform:translateY(-10vh) rotate(0deg); opacity:0}
-    10%{opacity:.7}
-    90%{opacity:.55}
-    100%{transform:translateY(110vh) rotate(420deg); opacity:0}
-  }
-  .petal-toggle-text{
-    position:fixed; top:14px; right:16px; z-index:30;
-    font-size:12px; cursor:pointer; user-select:none;
-    padding:6px 12px; border-radius:999px; border:1px solid rgba(111,174,90,.6);
-    background:rgba(255,255,255,.7); color:var(--matcha-deep);
-  }
-
-  /* 欢迎页：整屏可点，进入画阁漫游 */
-  .splash{
-    position:relative; z-index:2; height:100%;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; text-decoration:none; color:inherit; cursor:pointer;
-    padding:6vh 6vw;
-  }
-  .maids{display:flex; align-items:flex-end; justify-content:center; gap:18px; margin-bottom:6px}
-  .maid-fig{height:140px; width:auto; filter:drop-shadow(0 8px 20px rgba(47,93,58,.22)); user-select:none}
-  .brand-mark{font-family:var(--serif); font-weight:700; font-size:15px; letter-spacing:.4em; color:var(--matcha-deep)}
-  .maid-society{font-family:var(--serif); font-size:11px; letter-spacing:.5em; color:var(--gold); margin-top:4px}
-  h1.title{font-family:var(--serif); font-weight:700; font-size:clamp(34px,6vw,60px); color:var(--matcha-deep); margin:18px 0 10px; letter-spacing:.08em}
-  .subtitle{color:#6b6a63; font-size:14px; letter-spacing:.04em}
-  .enter-btn{
-    margin-top:26px; font-family:var(--sans); font-size:15px; letter-spacing:.08em;
-    padding:12px 30px; border-radius:999px; border:1px solid var(--matcha-deep);
-    background:var(--matcha-deep); color:#fff; transition:.18s;
-    box-shadow:0 10px 28px rgba(47,93,58,.25);
-  }
-  .splash:hover .enter-btn{background:var(--matcha-bright); border-color:var(--matcha-bright); transform:translateY(-2px)}
-  .hint{margin-top:16px; color:#9a987f; font-size:13px; letter-spacing:.1em}
-  .divider{width:120px; height:1px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--matcha),transparent)}
-  @media (max-width:520px){ .maid-fig{height:96px} }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>茶裙画隅</title>
+  <meta name="description" content="茶裙画隅 —— 一隅画廊，抹茶与女仆幻像。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/css/style.css" onerror="this.onerror=null;this.href='css/style.css'" />
+  <style>
+    /* 覆盖：让整个 splash 成为可点击锚点，不依赖 JS 跳转 */
+    .splash{cursor:pointer;text-decoration:none;color:inherit;display:block}
+    .splash:hover .splash__title{opacity:.9}
+  </style>
 </head>
-<body>
-<div id="petals"></div>
-<button class="petal-toggle-text" id="petalToggle" type="button" aria-label="切换花瓣飘落动画">🍃 花瓣飘落：开</button>
+<body class="welcome-page">
+  <!-- 背景与氛围层 -->
+  <canvas id="bgPetals" class="bg-petals" aria-hidden="true"></canvas>
+  <div class="bg-pattern" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="curtain" id="curtain" aria-hidden="true"></div>
+  <button class="petal-toggle-text" id="petalToggle" data-mode="text" type="button" aria-label="切换花瓣飘落动画">🍃 花瓣飘落：开</button>
 
-<a class="splash" href="pavilion.html" aria-label="推门入画阁漫游">
-  <div class="maids">
-    <img class="maid-fig" src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-left.webp" alt="" aria-hidden="true"
-         onerror="this.onerror=null;this.src='assets/maids/maid-left.webp'" />
-    <img class="maid-fig" src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-right.webp" alt="" aria-hidden="true"
-         onerror="this.onerror=null;this.src='assets/maids/maid-right.webp'" />
-  </div>
-  <div class="brand-mark">茶 裙 画 隅</div>
-  <div class="maid-society">MAID SOCIETY</div>
-  <h1 class="title">茶裙画隅</h1>
-  <div class="subtitle">一隅画廊，抹茶与女仆幻像</div>
-  <div class="divider"></div>
-  <div class="enter-btn">推门入画阁漫游 →</div>
-  <div class="hint">轻触任意处，推开画阁之门</div>
-</a>
+  <!-- ====== 欢迎页（老版布局：双女仆 + 中间文字，整屏点击进入画阁漫游） ====== -->
+  <a class="splash" id="splash" href="pavilion.html" aria-label="进入画阁漫游">
+    <p class="splash__nav">🖼 AI 绘画 · 作品分享画廊</p>
 
-<script>
-(function(){
-  /* 花瓣飘落（自包含） */
-  var box = document.getElementById('petals');
-  function buildPetals(){
-    box.innerHTML = '';
-    for(var i=0;i<16;i++){
-      var s = document.createElement('span');
-      var dur = 9 + Math.random()*9;
-      s.style.left = (Math.random()*100) + 'vw';
-      s.style.animationDuration = dur + 's';
-      s.style.animationDelay = (-Math.random()*dur) + 's';
-      var sc = 0.6 + Math.random()*0.9;
-      s.style.transform = 'scale(' + sc.toFixed(2) + ')';
-      box.appendChild(s);
-    }
-  }
-  var petalOn = true;
-  try { petalOn = localStorage.getItem('mopu_petals') !== 'off'; } catch(e){}
-  var petalBtn = document.getElementById('petalToggle');
-  function applyPetals(){
-    if(petalOn){ if(!box.children.length) buildPetals(); box.style.display='block'; petalBtn.textContent='🍃 花瓣飘落：开'; }
-    else { box.style.display='none'; petalBtn.textContent='🍃 花瓣飘落：关'; }
-  }
-  applyPetals();
-  petalBtn.addEventListener('click', function(e){
-    e.preventDefault(); e.stopPropagation();
-    petalOn = !petalOn;
-    try { localStorage.setItem('mopu_petals', petalOn ? 'on' : 'off'); } catch(err){}
-    applyPetals();
-  });
-})();
-</script>
+    <div class="splash__body">
+      <img src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-left.webp" alt="" class="splash__maid splash__maid--left" aria-hidden="true"
+           onerror="this.onerror=null;this.src='assets/maids/maid-left.webp'" />
+      <div class="splash__text">
+        <h1 class="splash__title">茶裙画隅</h1>
+        <p class="splash__slogan">一隅画廊，抹茶与女仆<span id="dreamKey">幻</span>像</p>
+        <p class="splash__hint">轻触任意处，推开画阁之门</p>
+      </div>
+      <img src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/assets/maids/maid-right.webp" alt="" class="splash__maid splash__maid--right" aria-hidden="true"
+           onerror="this.onerror=null;this.src='assets/maids/maid-right.webp'" />
+    </div>
+
+    <div class="splash__scroll-hint" aria-hidden="true">
+      <span class="scroll-arrow"></span>
+    </div>
+  </a>
+
+  <!-- 仅加载背景动画（bg.js），不加载 main.js（避免缓存跳转问题） -->
+  <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js"
+          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/bg.js';document.body.appendChild(s);})();"></script>
 </body>
 </html>
