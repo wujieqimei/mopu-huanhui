@@ -22,6 +22,10 @@
     }
     .splash:hover .splash__title{opacity:.9}
   </style>
+  <script>
+    /* 从 bfcache（前进/后退缓存）恢复时强制刷新，确保欢迎页锚点始终为最新、可整屏点击进入 */
+    window.addEventListener('pageshow', function(e){ if (e.persisted) { window.location.reload(); } });
+  </script>
 </head>
 <body class="welcome-page">
   <!-- 背景与氛围层 -->
