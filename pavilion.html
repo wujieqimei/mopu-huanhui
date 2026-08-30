@@ -233,10 +233,9 @@
   </div>
 </div>
 
-<!-- 数据快照（根级相对路径，同源加载） -->
-<script src="data/artworks.js"></script>
+<!-- 数据快照（根级相对路径，同源加载；加 Date.now() 缓存破除，确保画廊上传后立即可见） -->
 <script>
-(function(){
+function initPavilion(){
   var raw = (window.__BUILTIN__ && window.__BUILTIN__.artworks) || window.__BUILTIN__ || [];
   if(!Array.isArray(raw) || !raw.length){
     document.getElementById('corridor').innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
@@ -475,6 +474,18 @@
   });
   document.getElementById('lbPrev').addEventListener('click', goPrev);
   document.getElementById('lbNext').addEventListener('click', goNext);
+}
+
+/* 动态加载数据快照 + 缓存破除：确保画廊上传后，画阁漫游立即可见新作（GitHub Pages 对数据文件强制 10 分钟缓存） */
+(function(){
+  var s = document.createElement('script');
+  s.src = 'data/artworks.js?v=' + Date.now();
+  s.onload = function(){ try{ initPavilion(); }catch(e){ console.error('画阁漫游初始化失败:', e); } };
+  s.onerror = function(){
+    var c = document.getElementById('corridor');
+    if(c) c.innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
+  };
+  document.head.appendChild(s);
 })();
 </script>
 </body>
