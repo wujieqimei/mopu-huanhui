@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>茶裙画隅 · 画阁漫游</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --matcha-deep:#2f5d3a; --matcha:#6fae5a; --matcha-bright:#5b9a44;
+    --cream:#f7f5ec; --cream-2:#efeadd; --ink:#2b2a26; --gold:#c9a86a;
+    --shadow:0 12px 40px rgba(47,93,58,.18);
+    --serif:"Noto Serif SC",serif; --sans:"Noto Sans SC",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans); color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(111,174,90,.20), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(201,168,106,.16), transparent 60%),
+      var(--cream);
+    overflow-x:hidden;
+  }
+  /* 花瓣飘落（呼应原版花瓣氛围，轻量、不挡操作，独立于 js/bg.js） */
+  #petals{position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden}
+  #petals span{
+    position:absolute; top:-8%; width:14px; height:14px; opacity:.0;
+    background:radial-gradient(circle at 30% 30%, #b6d8a4, var(--matcha));
+    border-radius:0 70% 0 70%;
+    animation:fall linear infinite;
+  }
+  @keyframes fall{
+    0%{transform:translateY(-10vh) rotate(0deg); opacity:0}
+    10%{opacity:.7}
+    90%{opacity:.55}
+    100%{transform:translateY(110vh) rotate(420deg); opacity:0}
+  }
+
+  header.top{position:relative; z-index:2; margin-top:30px; padding:26px 6vw 6px; text-align:center}
+  .brand-row{display:flex; align-items:center; justify-content:center; gap:12px}
+  .leaf-logo{width:30px; height:30px; filter:drop-shadow(0 2px 4px rgba(47,93,58,.25))}
+  .brand-mark{font-family:var(--serif); font-weight:700; font-size:13px; letter-spacing:.4em; color:var(--matcha-deep)}
+  .maid-society{font-family:var(--serif); font-size:11px; letter-spacing:.5em; color:var(--gold); margin-top:2px}
+  h1.title{font-family:var(--serif); font-weight:700; font-size:clamp(28px,5vw,46px); color:var(--matcha-deep); margin:8px 0 6px; letter-spacing:.06em}
+  .subtitle{color:#6b6a63; font-size:14px}
+  .subtitle a{color:var(--matcha-bright); text-decoration:none; border-bottom:1px dashed rgba(91,154,68,.5)}
+  .divider{width:120px; height:1px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--matcha),transparent)}
+
+  /* ===== 漫游走廊 ===== */
+  #roam{position:relative; z-index:2; padding:10px 0 50px}
+  .corridor-hint{text-align:center; color:#8a897f; font-size:13px; margin:6px 0 16px}
+  .corridor{
+    display:flex; gap:34px; padding:80px 8vw; overflow-x:auto; overflow-y:hidden;
+    scroll-behavior:smooth; perspective:1300px;
+    -webkit-overflow-scrolling:touch; min-height:420px; align-items:center;
+    scroll-snap-type:x proximity;
+  }
+  .corridor::-webkit-scrollbar{height:8px}
+  .corridor::-webkit-scrollbar-thumb{background:rgba(111,174,90,.4); border-radius:8px}
+  .frame{
+    flex:0 0 auto; width:230px; height:320px; position:relative; cursor:pointer;
+    transform-style:preserve-3d; transition:opacity .15s linear, transform .08s linear;
+    will-change:transform,opacity; scroll-snap-align:center;
+  }
+  .frame__img{
+    width:100%; height:100%; border-radius:14px; background:#ddd center/cover no-repeat;
+    box-shadow:var(--shadow); border:6px solid #fff; outline:1px solid rgba(201,168,106,.5);
+    position:relative;
+  }
+  /* 悬停柔光聚光（呼应原版 #3 悬停聚光） */
+  .frame__img::after{
+    content:""; position:absolute; inset:0; border-radius:8px; pointer-events:none;
+    background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.42), transparent 55%),
+               radial-gradient(circle at 50% 50%, transparent 62%, rgba(18,32,20,.26));
+    opacity:0; transition:opacity .25s ease;
+  }
+  .frame:hover .frame__img{outline:2px solid var(--matcha-bright)}
+  .frame:hover .frame__img::after{opacity:1}
+  .frame__cap{
+    position:absolute; left:0; right:0; bottom:-28px; text-align:center;
+    font-family:var(--serif); font-size:14px; color:var(--matcha-deep);
+  }
+
+  /* ===== 灯箱 + 物语 ===== */
+  .lightbox{
+    position:fixed; inset:0; z-index:600; display:none;
+    background:rgba(28,40,30,.74); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:4vh 4vw;
+  }
+  .lightbox.open{display:flex}
+  .lb-panel{
+    display:grid; grid-template-columns:minmax(0,1.15fr) minmax(260px,0.85fr);
+    gap:0; max-width:1000px; width:100%; max-height:92vh; background:var(--cream);
+    border-radius:18px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.4);
+    border:1px solid rgba(201,168,106,.5);
+  }
+  .lb-img{width:100%; height:100%; min-height:0; max-height:92vh; object-fit:contain; background:#1c241a; display:block}
+  .lb-info{padding:26px 26px 22px; display:flex; flex-direction:column; overflow:auto; min-height:0}
+  .lb-name{font-family:var(--serif); font-size:24px; color:var(--matcha-deep); margin-bottom:4px}
+  .lb-tag{display:inline-block; font-size:11px; letter-spacing:.2em; color:var(--matcha-bright); border:1px solid var(--matcha-bright); border-radius:999px; padding:2px 10px; margin-bottom:14px; align-self:flex-start}
+  .lb-story-label{font-size:12px; letter-spacing:.3em; color:#9a987f; margin-bottom:8px}
+  .lb-story{font-family:var(--serif); font-size:16px; line-height:2; color:#3a3a34; white-space:pre-wrap; flex:1}
+  .lb-actions{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+  .btn{
+    font-family:var(--sans); font-size:13px; cursor:pointer; border-radius:999px;
+    padding:8px 16px; border:1px solid rgba(111,174,90,.6); background:#fff; color:var(--matcha-deep);
+    transition:.15s;
+  }
+  .btn:hover{background:rgba(111,174,90,.12)}
+  .btn--primary{background:var(--matcha-deep); color:#fff; border-color:var(--matcha-deep)}
+  .lb-close{position:absolute; top:14px; right:18px; font-size:26px; color:#fff; cursor:pointer; z-index:2; line-height:1}
+  footer.foot{position:relative; z-index:2; text-align:center; color:#9a987f; font-size:12px; padding:20px 6vw 50px}
+  @media (max-width:720px){
+    .lb-panel{grid-template-columns:1fr; grid-template-rows:auto auto; max-height:94vh}
+    .lb-img{height:46vh; max-height:46vh}
+    .lb-info{max-height:48vh}
+  }
+</style>
+</head>
+<body>
+<div id="petals"></div>
+
+<header class="top">
+  <div class="brand-row">
+    <svg class="leaf-logo" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 2C9 7 5 14 6 26c10-1 18-7 20-18-4 2-8 2-10-6z" fill="#6fae5a" stroke="#2f5d3a" stroke-width="1.2"/>
+      <path d="M16 6C13 12 11 18 11 24" fill="none" stroke="#2f5d3a" stroke-width="1" opacity=".6"/>
+    </svg>
+    <div>
+      <div class="brand-mark">茶 裙 画 隅</div>
+      <div class="maid-society">MAID SOCIETY</div>
+    </div>
+  </div>
+  <h1 class="title">画阁漫游</h1>
+  <div class="subtitle">一隅画廊，抹茶与女仆幻像 —— <a href="gallery.html">返回画廊列表</a></div>
+  <div class="divider"></div>
+</header>
+
+<section id="roam">
+  <p class="corridor-hint">← 拖动走廊可左右漫游 · 点击任意一幅，听女仆讲它的故事 →</p>
+  <div class="corridor" id="corridor"></div>
+</section>
+
+<footer class="foot">茶裙画隅 · 画阁漫游 × 画中物语（只读漫游，作品管理请在画廊页进行）</footer>
+
+<!-- 灯箱：近景 + 画中物语 -->
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <div class="lb-close" id="lbClose">&times;</div>
+  <div class="lb-panel">
+    <img class="lb-img" id="lbImg" alt="" />
+    <div class="lb-info">
+      <div class="lb-name" id="lbName"></div>
+      <span class="lb-tag">画中物语</span>
+      <div class="lb-story-label">女 仆 物 语</div>
+      <div class="lb-story" id="lbStory"></div>
+      <div class="lb-actions">
+        <button class="btn" id="lbPrev">← 上一幅</button>
+        <button class="btn" id="lbNext">下一幅 →</button>
+        <button class="btn btn--primary" id="lbCopy">复制提示词</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 数据快照（根级相对路径，同源加载） -->
+<script src="data/artworks.js"></script>
+<script>
+(function(){
+  var raw = (window.__BUILTIN__ && window.__BUILTIN__.artworks) || window.__BUILTIN__ || [];
+  if(!Array.isArray(raw) || !raw.length){
+    document.getElementById('corridor').innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
+    return;
+  }
+  function img(p){ return p; }   // file/thumb 已是相对仓库根的路径
+  var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
+
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  var arts = shuffle(raw.slice());   // 每次进入随机排序
+
+  /* ---------- 花瓣飘落 ---------- */
+  (function(){
+    var box = document.getElementById('petals');
+    for(var i=0;i<16;i++){
+      var s = document.createElement('span');
+      var dur = 9 + Math.random()*9;
+      s.style.left = (Math.random()*100) + 'vw';
+      s.style.animationDuration = dur + 's';
+      s.style.animationDelay = (-Math.random()*dur) + 's';
+      var sc = 0.6 + Math.random()*0.9;
+      s.style.transform = 'scale(' + sc.toFixed(2) + ')';
+      box.appendChild(s);
+    }
+  })();
+
+  /* ---------- 画中物语：按作品 id 稳定生成（随机排序后物语仍绑定该图） ---------- */
+  function hashStr(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; } return h; }
+  var STORY_TEMPLATES = [
+    function(t){ return "《"+t+"》里，光像温过的茶，慢慢漫过她的肩。我端着托盘立在门边，竟舍不得出声。"; },
+    function(t){ return "她望向画外的那一眼，恰好落在我心上。《"+t+"》——我总疑心她早看穿了每个驻足的人。"; },
+    function(t){ return "雨丝敲着窗，《"+t+"》里的她却静得发亮。我替她添了一勺糖，和半句没说出口的「慢些走」。"; },
+    function(t){ return "神性的冷，落在柔软处。《"+t+"》告诉我，再远的星辰，也想在人间安安静静坐一个下午。"; },
+    function(t){ return "《"+t+"》是一封没寄出的信。我替你收着，等哪天你推门进来，再轻轻递上。"; },
+    function(t){ return "画阁深处，《"+t+"》独自亮着。我不忍惊扰，只把花瓣往她那边，悄悄吹了吹。"; },
+    function(t){ return "她半阖的眼里，盛着整个被驯服的夜。《"+t+"》——连风经过，都放轻了脚步。"; },
+    function(t){ return "《"+t+"》里的时间是被茶香浸过的，慢、软、且温柔。我愿在此多站一会儿。"; },
+    function(t){ return "若你问画阁最珍贵的收藏，我会指指《"+t+"》——不是因为画得好，是因为它像极了你某天的神情。"; },
+    function(t){ return "灯影摇晃，《"+t+"》里的她似笑非笑。我端灯的手顿了顿，怕惊散了这一幕。"; }
+  ];
+  function getStory(a){
+    var seed = String(a.id != null ? a.id : (a.file || a.title || 'mopu'));
+    var h = hashStr(seed);
+    return STORY_TEMPLATES[h % STORY_TEMPLATES.length]((a.title||'无题'));
+  }
+
+  /* ---------- 漫游走廊 ---------- */
+  var corridor = document.getElementById('corridor');
+  arts.forEach(function(a, i){
+    var f = document.createElement('div');
+    f.className = 'frame';
+    f.dataset.i = i;
+    var d = document.createElement('div');
+    d.className = 'frame__img';
+    d.style.backgroundImage = "url('" + img(a.thumb) + "')";
+    var cap = document.createElement('div');
+    cap.className = 'frame__cap';
+    cap.textContent = a.title || '无题';
+    f.appendChild(d); f.appendChild(cap);
+    f.addEventListener('click', function(){ openLightbox(i); });
+    corridor.appendChild(f);
+  });
+
+  function layout(){
+    var cw = corridor.clientWidth, cx = cw/2;
+    corridor.querySelectorAll('.frame').forEach(function(f){
+      var r = f.getBoundingClientRect();
+      var fc = r.left + r.width/2;
+      var off = (fc - cx) / cw;                 // 约 -1..1
+      var ry = Math.max(-42, Math.min(42, off*42));
+      var sc = 1 - Math.min(0.42, Math.abs(off)*0.55);
+      var op = 1 - Math.min(0.72, Math.abs(off)*0.95);
+      f.style.transform = 'perspective(1000px) rotateY(' + (-ry).toFixed(1) + 'deg) scale(' + sc.toFixed(3) + ')';
+      f.style.opacity = op.toFixed(3);
+      f.style.zIndex = Math.round(100 - Math.abs(off)*100);
+    });
+  }
+  corridor.addEventListener('scroll', layout, {passive:true});
+  window.addEventListener('resize', layout);
+
+  /* 一进页面就居中：左右都能漫游 */
+  function centerCorridor(){
+    var mid = (corridor.scrollWidth - corridor.clientWidth) / 2;
+    corridor.scrollLeft = Math.max(0, mid);
+    layout();
+  }
+  var wait = setInterval(function(){
+    if(corridor.scrollWidth > corridor.clientWidth + 10){
+      clearInterval(wait);
+      centerCorridor();
+    }
+  }, 60);
+  setTimeout(function(){ clearInterval(wait); centerCorridor(); }, 1500);
+
+  /* ---------- 灯箱 + 物语 ---------- */
+  var lightbox = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lbImg');
+  var lbName = document.getElementById('lbName');
+  var lbStory = document.getElementById('lbStory');
+  var cur = 0;
+  function openLightbox(i){
+    cur = i; var a = arts[i];
+    lbImg.dataset.fb = '';
+    lbImg.src = img(a.file);
+    lbName.textContent = a.title || '无题';
+    lbStory.textContent = getStory(a);
+    lightbox.classList.add('open');
+    lightbox.setAttribute('aria-hidden','false');
+  }
+  lbImg.addEventListener('error', function(){
+    if(!lbImg.dataset.fb && arts[cur]){ lbImg.dataset.fb = '1'; lbImg.src = CDN + arts[cur].file; }
+  });
+  function closeLightbox(){ lightbox.classList.remove('open'); lightbox.setAttribute('aria-hidden','true'); }
+  document.getElementById('lbClose').addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', function(e){ if(e.target===lightbox) closeLightbox(); });
+  document.addEventListener('keydown', function(e){
+    if(!lightbox.classList.contains('open')) return;
+    if(e.key==='Escape') closeLightbox();
+    if(e.key==='ArrowLeft') openLightbox((cur-1+arts.length)%arts.length);
+    if(e.key==='ArrowRight') openLightbox((cur+1)%arts.length);
+  });
+  document.getElementById('lbPrev').addEventListener('click', function(){ openLightbox((cur-1+arts.length)%arts.length); });
+  document.getElementById('lbNext').addEventListener('click', function(){ openLightbox((cur+1)%arts.length); });
+  document.getElementById('lbCopy').addEventListener('click', function(){
+    var t = (arts[cur].prompt || '');
+    if(!t){ return; }
+    function done(){ var b=document.getElementById('lbCopy'); var o=b.textContent; b.textContent='已复制 ✓'; setTimeout(function(){b.textContent=o;},1400); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done, function(){ fallbackCopy(t, done); });
+    } else { fallbackCopy(t, done); }
+  });
+  function fallbackCopy(text, cb){
+    var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); cb&&cb(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>
