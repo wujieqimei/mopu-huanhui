@@ -47,6 +47,17 @@
   .subtitle{color:#6b6a63; font-size:14px}
   .subtitle a{color:var(--matcha-bright); text-decoration:none; border-bottom:1px dashed rgba(91,154,68,.5)}
   .divider{width:120px; height:1px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--matcha),transparent)}
+  /* 顶栏入口：返回门厅 / 浏览全部作品 */
+  .pav-nav{display:flex; gap:10px; justify-content:center; margin:2px 0 2px; flex-wrap:wrap}
+  .pav-nav a{
+    font-family:var(--sans); font-size:13px; text-decoration:none; cursor:pointer;
+    padding:8px 18px; border-radius:999px; border:1px solid rgba(111,174,90,.6);
+    background:rgba(255,255,255,.6); color:var(--matcha-deep); transition:.15s;
+  }
+  .pav-nav a:hover{background:rgba(111,174,90,.14)}
+  .pav-nav a.primary{background:var(--matcha-deep); color:#fff; border-color:var(--matcha-deep)}
+  .pav-nav a.primary:hover{background:var(--matcha-bright)}
+
 
   /* ===== 漫游走廊 ===== */
   #roam{position:relative; z-index:2; padding:10px 0 50px}
@@ -123,6 +134,10 @@
 <div id="petals"></div>
 
 <header class="top">
+  <nav class="pav-nav">
+    <a href="index.html">← 返回门厅</a>
+    <a href="gallery.html" class="primary">🖼 浏览全部作品</a>
+  </nav>
   <div class="brand-row">
     <svg class="leaf-logo" viewBox="0 0 32 32" aria-hidden="true">
       <path d="M16 2C9 7 5 14 6 26c10-1 18-7 20-18-4 2-8 2-10-6z" fill="#6fae5a" stroke="#2f5d3a" stroke-width="1.2"/>
@@ -134,7 +149,7 @@
     </div>
   </div>
   <h1 class="title">画阁漫游</h1>
-  <div class="subtitle">一隅画廊，抹茶与女仆幻像 —— <a href="gallery.html">返回画廊列表</a></div>
+  <div class="subtitle">一隅画廊，抹茶与女仆幻像 —— 推门即入画，循廊可漫游</div>
   <div class="divider"></div>
 </header>
 
