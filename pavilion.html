@@ -23,7 +23,7 @@
       var(--cream);
     overflow-x:hidden;
   }
-  /* 花瓣飘落（呼应原版花瓣氛围，轻量、不挡操作，独立于 js/bg.js） */
+  /* 花瓣飘落 */
   #petals{position:fixed; inset:0; pointer-events:none; z-index:1; overflow:hidden}
   #petals span{
     position:absolute; top:-8%; width:14px; height:14px; opacity:.0;
@@ -47,7 +47,7 @@
   .subtitle{color:#6b6a63; font-size:14px}
   .subtitle a{color:var(--matcha-bright); text-decoration:none; border-bottom:1px dashed rgba(91,154,68,.5)}
   .divider{width:120px; height:1px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--matcha),transparent)}
-  /* 顶栏入口：返回门厅 / 浏览全部作品 */
+  /* 顶栏入口 */
   .pav-nav{display:flex; gap:10px; justify-content:center; margin:2px 0 2px; flex-wrap:wrap}
   .pav-nav a{
     font-family:var(--sans); font-size:13px; text-decoration:none; cursor:pointer;
@@ -80,7 +80,6 @@
     box-shadow:var(--shadow); border:6px solid #fff; outline:1px solid rgba(201,168,106,.5);
     position:relative;
   }
-  /* 悬停柔光聚光（呼应原版 #3 悬停聚光） */
   .frame__img::after{
     content:""; position:absolute; inset:0; border-radius:8px; pointer-events:none;
     background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.42), transparent 55%),
@@ -94,7 +93,7 @@
     font-family:var(--serif); font-size:14px; color:var(--matcha-deep);
   }
 
-  /* ===== 灯箱 + 物语 ===== */
+  /* ===== 灯箱 + 物语（重构：两侧翻页箭头 + 丰富物语） ===== */
   .lightbox{
     position:fixed; inset:0; z-index:600; display:none;
     background:rgba(28,40,30,.74); backdrop-filter:blur(4px);
@@ -102,31 +101,76 @@
   }
   .lightbox.open{display:flex}
   .lb-panel{
-    display:grid; grid-template-columns:minmax(0,1.15fr) minmax(260px,0.85fr);
-    gap:0; max-width:1000px; width:100%; max-height:92vh; background:var(--cream);
+    display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,0.9fr);
+    gap:0; max-width:1080px; width:100%; max-height:92vh; background:var(--cream);
     border-radius:18px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.4);
     border:1px solid rgba(201,168,106,.5);
+    position:relative;
   }
-  .lb-img{width:100%; height:100%; min-height:0; max-height:92vh; object-fit:contain; background:#1c241a; display:block}
-  .lb-info{padding:26px 26px 22px; display:flex; flex-direction:column; overflow:auto; min-height:0}
-  .lb-name{font-family:var(--serif); font-size:24px; color:var(--matcha-deep); margin-bottom:4px}
-  .lb-tag{display:inline-block; font-size:11px; letter-spacing:.2em; color:var(--matcha-bright); border:1px solid var(--matcha-bright); border-radius:999px; padding:2px 10px; margin-bottom:14px; align-self:flex-start}
-  .lb-story-label{font-size:12px; letter-spacing:.3em; color:#9a987f; margin-bottom:8px}
-  .lb-story{font-family:var(--serif); font-size:16px; line-height:2; color:#3a3a34; white-space:pre-wrap; flex:1}
-  .lb-actions{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
-  .btn{
-    font-family:var(--sans); font-size:13px; cursor:pointer; border-radius:999px;
-    padding:8px 16px; border:1px solid rgba(111,174,90,.6); background:#fff; color:var(--matcha-deep);
-    transition:.15s;
+  .lb-img-wrap{
+    position:relative; overflow:hidden; background:#1c241a;
+    display:flex; align-items:center; justify-content:center;
   }
-  .btn:hover{background:rgba(111,174,90,.12)}
-  .btn--primary{background:var(--matcha-deep); color:#fff; border-color:var(--matcha-deep)}
-  .lb-close{position:absolute; top:14px; right:18px; font-size:26px; color:#fff; cursor:pointer; z-index:2; line-height:1}
+  .lb-img{width:100%; height:100%; min-height:0; max-height:92vh; object-fit:contain; display:block}
+
+  /* 两侧透明翻页箭头 */
+  .lb-arrow{
+    position:absolute; top:0; bottom:0; width:72px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .25s ease; z-index:10;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .lb-panel:hover .lb-arrow{opacity:1}
+  .lb-arrow:hover{opacity:1 !important; background:rgba(255,255,255,.06)}
+  .lb-arrow--left{left:0}
+  .lb-arrow--right{right:0}
+  .lb-arrow svg{
+    width:28px; height:28px; stroke:rgba(255,255,255,.65);
+    stroke-width:1.8; fill:none; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));
+    transition:stroke .2s, transform .2s;
+  }
+  .lb-arrow:hover svg{stroke:rgba(255,255,255,.95); transform:scale(1.12)}
+
+  /* 右侧物语区 */
+  .lb-info{padding:28px 28px 24px; display:flex; flex-direction:column; overflow:auto; min-height:0}
+  .lb-name{font-family:var(--serif); font-size:22px; color:var(--matcha-deep); margin-bottom:2px}
+  .lb-tag{display:inline-block; font-size:11px; letter-spacing:.2em; color:var(--matcha-bright); border:1px solid var(--matcha-bright); border-radius:999px; padding:2px 10px; margin-bottom:12px; align-self:flex-start}
+  .lb-story-label{font-size:11px; letter-spacing:.35em; color:#9a987f; margin-bottom:10px; text-transform:uppercase}
+  .lb-story{font-family:var(--serif); font-size:14.5px; line-height:1.9; color:#3a3a34; white-space:pre-wrap; flex:1}
+
+  /* 物语内部分段样式 */
+  .lb-story .st-p{margin-bottom:1.1em}
+  .lb-story .st-p:last-child{margin-bottom:0}
+  .lb-story .st-mood{
+    display:inline-block; font-size:11.5px; letter-spacing:.15em; color:var(--gold);
+    border-bottom:1px solid rgba(201,168,106,.35); padding-bottom:2px; margin-bottom:.6em;
+  }
+  .lb-story .st-note{
+    font-style:italic; color:#7a7870; font-size:13.5px; line-height:1.75;
+    border-left:2px solid rgba(111,174,90,.25); padding:8px 0 8px 14px; margin-top:1em;
+  }
+
+  /* 复制提示词（移到物语底部，小巧） */
+  .lb-copy-row{margin-top:14px; padding-top:12px; border-top:1px solid rgba(111,174,90,.12); display:flex; align-items:center; justify-content:space-between}
+  .lb-copy-btn{
+    font-family:var(--sans); font-size:11.5px; cursor:pointer; border-radius:999px;
+    padding:5px 14px; border:1px solid rgba(111,174,90,.4); background:transparent; color:var(--matcha-deep);
+    transition:.15s; letter-spacing:.05em;
+  }
+  .lb-copy-btn:hover{background:rgba(111,174,90,.08)}
+  .lb-counter{font-size:11px; color:#b0aeA5; letter-spacing:.08em}
+
+  .lb-close{position:absolute; top:12px; right:14px; font-size:24px; color:rgba(255,255,255,.55); cursor:pointer; z-index:20; line-height:1; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background .15s}
+  .lb-close:hover{background:rgba(255,255,255,.12); color:#fff}
   footer.foot{position:relative; z-index:2; text-align:center; color:#9a987f; font-size:12px; padding:20px 6vw 50px}
-  @media (max-width:720px){
+
+  @media (max-width:800px){
     .lb-panel{grid-template-columns:1fr; grid-template-rows:auto auto; max-height:94vh}
-    .lb-img{height:46vh; max-height:46vh}
-    .lb-info{max-height:48vh}
+    .lb-img{height:42vh; max-height:42vh}
+    .lb-info{max-height:52vh}
+    .lb-arrow{width:48px; opacity:.7}
+    .lb-arrow svg{width:22px; height:22px}
   }
 </style>
 </head>
@@ -162,18 +206,27 @@
 
 <!-- 灯箱：近景 + 画中物语 -->
 <div class="lightbox" id="lightbox" aria-hidden="true">
-  <div class="lb-close" id="lbClose">&times;</div>
+  <div class="lb-close" id="lbClose" title="关闭">&times;</div>
   <div class="lb-panel">
-    <img class="lb-img" id="lbImg" alt="" />
+    <!-- 左侧图片区 + 两侧翻页箭头 -->
+    <div class="lb-img-wrap">
+      <img class="lb-img" id="lbImg" alt="" />
+      <div class="lb-arrow lb-arrow--left" id="lbPrev" title="上一幅">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div class="lb-arrow lb-arrow--right" id="lbNext" title="下一幅">
+        <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+      </div>
+    </div>
+    <!-- 右侧物语区 -->
     <div class="lb-info">
       <div class="lb-name" id="lbName"></div>
       <span class="lb-tag">画中物语</span>
       <div class="lb-story-label">女 仆 物 语</div>
       <div class="lb-story" id="lbStory"></div>
-      <div class="lb-actions">
-        <button class="btn" id="lbPrev">← 上一幅</button>
-        <button class="btn" id="lbNext">下一幅 →</button>
-        <button class="btn btn--primary" id="lbCopy">复制提示词</button>
+      <div class="lb-copy-row">
+        <button class="lb-copy-btn" id="lbCopy">📋 复制提示词</button>
+        <span class="lb-counter" id="lbCounter">1 / 81</span>
       </div>
     </div>
   </div>
@@ -188,11 +241,11 @@
     document.getElementById('corridor').innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
     return;
   }
-  function img(p){ return p; }   // file/thumb 已是相对仓库根的路径
+  function img(p){ return p; }
   var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
 
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
-  var arts = shuffle(raw.slice());   // 每次进入随机排序
+  var arts = shuffle(raw.slice());
 
   /* ---------- 花瓣飘落 ---------- */
   (function(){
@@ -209,20 +262,125 @@
     }
   })();
 
-  /* ---------- 画中物语：按作品 id 稳定生成（随机排序后物语仍绑定该图） ---------- */
+  /* ========== 画中物语：丰富的多段式生成（按作品 id 稳定） ========== */
   function hashStr(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; } return h; }
+
+  /* 情绪关键词池 */
+  var MOODS = ['静谧','温柔','清冷','炽热','朦胧','澄澈','缱绻','孤寂','欢愉','惆怅','恬淡','凛冽','梦幻','笃定','缄默'];
+  var SCENES = ['午后三点的阳光斜穿窗棂','暮色四合时廊灯初上','雨后潮湿的空气里浮着茶香','清晨第一缕光落在画框边缘','深夜只有烛火与呼吸声','黄昏将尽未尽的最后一抹金','月色如水漫过地板','风起时帘幕轻轻晃动','雪落无声的纯白时刻','樱花瓣飘进半开的窗'];
+
+  /* 12 套丰富的物语模板——每套返回 HTML 多段式内容 */
   var STORY_TEMPLATES = [
-    function(t){ return "《"+t+"》里，光像温过的茶，慢慢漫过她的肩。我端着托盘立在门边，竟舍不得出声。"; },
-    function(t){ return "她望向画外的那一眼，恰好落在我心上。《"+t+"》——我总疑心她早看穿了每个驻足的人。"; },
-    function(t){ return "雨丝敲着窗，《"+t+"》里的她却静得发亮。我替她添了一勺糖，和半句没说出口的「慢些走」。"; },
-    function(t){ return "神性的冷，落在柔软处。《"+t+"》告诉我，再远的星辰，也想在人间安安静静坐一个下午。"; },
-    function(t){ return "《"+t+"》是一封没寄出的信。我替你收着，等哪天你推门进来，再轻轻递上。"; },
-    function(t){ return "画阁深处，《"+t+"》独自亮着。我不忍惊扰，只把花瓣往她那边，悄悄吹了吹。"; },
-    function(t){ return "她半阖的眼里，盛着整个被驯服的夜。《"+t+"》——连风经过，都放轻了脚步。"; },
-    function(t){ return "《"+t+"》里的时间是被茶香浸过的，慢、软、且温柔。我愿在此多站一会儿。"; },
-    function(t){ return "若你问画阁最珍贵的收藏，我会指指《"+t+"》——不是因为画得好，是因为它像极了你某天的神情。"; },
-    function(t){ return "灯影摇晃，《"+t+"》里的她似笑非笑。我端灯的手顿了顿，怕惊散了这一幕。"; }
+    // 0 — 光与茶的温柔
+    function(t){
+      var m = MOODS[hashStr(t+'m0') % MOODS.length];
+      var s = SCENES[hashStr(t+'s0') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">《'+t+'》里，光像温过的茶，慢慢漫过她的肩。我端着托盘立在门边，竟舍不得出声。'+s+'，她恰好抬眼——那一瞬，整个画阁都静了下来。</div>'+
+        '<div class="st-p">她的姿态有一种未经排练的优雅，仿佛下一秒就会起身离开，却又像已在此等候了很久。裙摆的褶皱里藏着风的形状，发丝间漏下细碎的光。</div>'+
+        '<div class="st-note">——女仆手记：这幅挂在东墙第三格，我每天擦拭画框时都会多停一会儿。有人说它像某个午后未完成的梦，我觉得它更像一句没说出口的话。</div>';
+    },
+    // 1 — 凝视与被凝视
+    function(t){
+      var m = MOODS[hashStr(t+'m1') % MOODS.length];
+      var s = SCENES[hashStr(t+'s1') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">她望向画外的那一眼，恰好落在我心上。《'+t+'》——我总疑心她早看穿了每个驻足的人。'+s+'，那目光似乎能穿透玻璃、穿过时间。</div>'+
+        '<div class="st-p">画笔在这里极尽克制，没有多余的线条，每一笔都恰好停在"再多一点就溢出来"的边界。这种分寸感是最难模仿的——像一杯恰到好处的茶，水温、浓度、甘涩的比例都精确得近乎奢侈。</div>'+
+        '<div class="st-note">——女仆手记：有位客人站在这幅前足足二十分钟。临走时他说："她看的不是我，是比我更远的地方。"我不知道他指的是画中人还是他自己。</div>';
+    },
+    // 2 — 雨与糖
+    function(t){
+      var m = MOODS[hashStr(t+'m2') % MOODS.length];
+      var s = SCENES[hashStr(t+'s2') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">雨丝敲着窗，《'+t+'》里的她却静得发亮。我替她添了一勺糖，和半句没说出口的「慢些走」。'+s+'，整幅画的色调像被水洇开的墨，边界模糊而温柔。</div>'+
+        '<div class="st-p">你注意到了吗？她的指尖微微蜷曲，像是抓住了什么看不见的东西——也许是一缕光，也许是一段记忆，也许只是画家落下笔时残留的温度。这些细节让画面有了呼吸感，不再是平面的颜料堆叠。</div>'+
+        '<div class="st-note">——女仆手记：雨天来看这幅的人特别多。大概是因为雨水把世界都涂成了灰调子，反而衬出了画里那抹不肯熄灭的亮。</div>';
+    },
+    // 3 — 神性与人间
+    function(t){
+      var m = MOODS[hashStr(t+'m3') % MOODS.length];
+      var s = SCENES[hashStr(t+'s3') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">神性的冷，落在柔软处。《'+t+'》告诉我，再远的星辰，也想在人间安安静静坐一个下午。'+s+'，她身上同时存在着两种矛盾的气质——既像不染尘埃的神像，又像邻家那个会在檐下躲雨的少女。</div>'+
+        '<div class="st-p">画家用了一种很聪明的方法处理光影：高光区域几乎纯白，暗部却保留了丰富的层次。这让人物看起来像是在自发光——不是刺眼的光，而是从骨子里透出来的、温和的明亮。</div>'+
+        '<div class="st-note">——女仆手记：主人说这幅的灵感来自"神明降临人间后做的第一件事是找杯茶喝"。我不确定这是不是真的，但它确实让人想泡一壶好茶，慢慢看。</div>';
+    },
+    // 4 — 未寄出的信
+    function(t){
+      var m = MOODS[hashStr(t+'m4') % MOODS.length];
+      var s = SCENES[hashStr(t+'s4') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">《'+t+"》是一封没寄出的信。我替你收着，等哪天你推门进来，再轻轻递上。"+s+'，信纸的折痕里夹着一枚干枯的花瓣——那是时间的标本。</div>'+
+        '<div class="st-p">整幅画的构图有一种"未完成感"，好像画家在最后一刻停了笔，留白给观看者自己去填补。这种克制比满铺更难，因为它要求画家知道"什么时候该停下"——而这恰恰是大多数人都学不会的事。</div>'+
+        '<div class="st-note">——女仆手记：有次我不小心打翻了茶杯，水渍差点溅到画框上。那一刻我心跳都停了。擦干净后我在想，也许有些东西就是应该保持这种"差一点就失去"的紧张感。</div>';
+    },
+    // 5 — 画阁深处
+    function(t){
+      var m = MOODS[hashStr(t+'m5') % MOODS.length];
+      var s = SCENES[hashStr(t+'s5') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">画阁深处，《'+t+'》独自亮着。我不忍惊扰，只把花瓣往她那边，悄悄吹了吹。'+s+'，这里的光线和其他角落都不一样——更暖、更静，像被时间遗忘的一小块。</div>'+
+        '<div class="st-p">色彩搭配值得细细品味：主调是低饱和度的抹茶绿与米白的对话，点缀一两处金色像撒了一把碎星。这种配色方案在视觉上非常"解压"——不刺激、不抢戏，只是安安静静地待在那里，等你准备好再看第二眼。</div>'+
+        '<div class="st-note">——女仆手记：这幅挂的位置是我选的。主人问为什么，我说"因为每天清晨阳光第一个照到的就是这里"。其实真正的原因是——我想让它成为每个人走进画阁时看到的第一件事。</div>';
+    },
+    // 6 — 被驯服的夜
+    function(t){
+      var m = MOODS[hashStr(t+'m6') % MOODS.length];
+      var s = SCENES[hashStr(t+'s6') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">她半阖的眼里，盛着整个被驯服的夜。《'+t+'》——连风经过，都放轻了脚步。'+s+'，画面的暗部不是黑色，而是无数层深绿与靛蓝的叠加，像夜空被反复涂抹过。</div>'+
+        '<div class="st-p">最妙的是她的表情——不能叫"微笑"，因为嘴角几乎没有弧度。但你能感觉到她在"笑"，一种内在的、不需要外部表情来证明的满足感。这种"无声之笑"是最高级的表达，文字描述起来反而显得笨拙。</div>'+
+        '<div class="st-note">——女仆手记：深夜锁门前我会最后看它一眼。那种感觉很难形容——像和一个不需要说话的朋友道晚安。你知道她在那里，这就够了。</div>';
+    },
+    // 7 — 茶香浸过的时光
+    function(t){
+      var m = MOODS[hashStr(t+'m7') % MOODS.length];
+      var s = SCENES[hashStr(t+'s7') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">《'+t+'》里的时间是被茶香浸过的，慢、软、且温柔。我愿在此多站一会儿。'+s+'，画面的笔触松而不散，像一位老匠人信手拈来的功夫——看似随意，实则每一步都踩在最准确的位置上。</div>'+
+        '<div class="st-p">如果你凑近看（当然我不会真的让你凑近，规矩就是规矩），会发现皮肤部分的色彩过渡极其细腻——从高光的暖白到阴影的冷粉，中间至少有七八个渐变层级。这不是电脑渲染能做到的，只有人的眼睛和手配合才能画出这种"活的肤色"。</div>'+
+        '<div class="st-note">——女仆手记：主人泡茶时偶尔会看着这幅发呆。我问他在想什么，他说"在想画里的时间是不是比我们的慢一点"。我觉得他说得对。</div>';
+    },
+    // 8 — 像你某天的神情
+    function(t){
+      var m = MOODS[hashStr(t+'m8') % MOODS.length];
+      var s = SCENES[hashStr(t+'s8') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">若你问画阁最珍贵的收藏，我会指指《'+t+'》——不是因为画得好，是因为它像极了你某天的神情。'+s+'，那种似曾相识的感觉会让人不由自主地停下来，在心里搜索记忆的抽屉。</div>'+
+        '<div class="st-p">这幅画的构图打破了常规：人物不在正中央，视线也不朝向观众。她看向画面之外的一个点，那个点是空的——画家故意留白了。这个"空"才是真正的主体，因为每个观看者都会把自己的故事填进去。</div>'+
+        '<div class="st-note">——女仆手记：有个女孩站在这幅前哭了。我没问她为什么。有些画就是这样，它们不说任何话，却刚好戳中了你最柔软的那根弦。</div>';
+    },
+    // 9 — 灯影摇晃
+    function(t){
+      var m = MOODS[hashStr(t+'m9') % MOODS.length];
+      var s = SCENES[hashStr(t+'s9') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">灯影摇晃，《'+t+'》里的她似笑非笑。我端灯的手顿了顿，怕惊散了这一幕。'+s+'，暖黄色的光源从侧面打来，在她脸上投下一半明一半暗的分界线——那是整幅画最迷人的地方。</div>'+
+        '<div class="st-p">明暗对比法（Chiaroscuro）在这幅里用得极为克制。没有戏剧性的强反差，只有温柔的过渡——像黎明和黑夜之间那段暧昧不清的时间。人物的轮廓被光勾勒出来，但又不至于和背景分离，始终保持着一种"融入环境"的和谐感。</div>'+
+        '<div class="st-note">——女仆手记：我最喜欢傍晚时分看这幅。那时候自然光和室内灯光混在一起，画里的光影和真实空间的光影重叠，你会分不清哪个是画、哪个是世界。</div>';
+    },
+    // 10 — 风经过的形状
+    function(t){
+      var m = MOODS[hashStr(t+'m10') % MOODS.length];
+      var s = SCENES[hashStr(t+'s10') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">《'+t+'》捕捉到了风经过的形状。你看她的发丝和衣褶，都在指向同一个方向——那是风来过的证据。'+s+'，静止的画面里藏着动态，这才是最高明的"不动之动"。</div>'+
+        '<div class="st-p">画家对布料质感的表现力令人叹服。轻纱的透、绸缎的光、棉麻的朴，三种材质在同一幅画里各安其位、互不干扰。尤其是那片被风吹起的衣角，你几乎能听到布料摩擦的窸窣声。</div>'+
+        '<div class="st-note">——女仆手记：有回开窗通风，风正好从这幅前掠过，画里人的头发好像真的动了一下。我知道是错觉，但从那以后我总忍不住多看两眼。</div>';
+    },
+    // 11 — 镜中的另一个自己
+    function(t){
+      var m = MOODS[hashStr(t+'m11') % MOODS.length];
+      var s = SCENES[hashStr(t+'s11') % SCENES.length];
+      return '<div class="st-p"><span class="st-mood">'+m+'</span></div>'+
+        '<div class="st-p">《'+t+'》像一面镜子——不是照出你的脸，是照出你此刻的心情。开心时看她，她在笑；低落时再看，她的眼里也蒙了一层雾。'+s+'，画作完成了最后一笔之后，剩下的就交给每个驻足的人去完成。</div>'+
+        '<div class="st-p">色彩心理学在这幅里得到了完美印证：主色调的选择直接影响观者的情绪反馈。冷调让人沉静，暖调让人安心，而这幅巧妙地平衡了两者——像一只脚踩在现实、另一只脚伸进了梦境。</div>'+
+        '<div class="st-note">——女仆手记：我把这幅放在走廊尽头是有原因的。走完整个画阁之后看到它，就像旅程终点的一面镜子，让你有机会和自己打个照面。</div>';
+    }
   ];
+
   function getStory(a){
     var seed = String(a.id != null ? a.id : (a.file || a.title || 'mopu'));
     var h = hashStr(seed);
@@ -251,7 +409,7 @@
     corridor.querySelectorAll('.frame').forEach(function(f){
       var r = f.getBoundingClientRect();
       var fc = r.left + r.width/2;
-      var off = (fc - cx) / cw;                 // 约 -1..1
+      var off = (fc - cx) / cw;
       var ry = Math.max(-42, Math.min(42, off*42));
       var sc = 1 - Math.min(0.42, Math.abs(off)*0.55);
       var op = 1 - Math.min(0.72, Math.abs(off)*0.95);
@@ -263,7 +421,6 @@
   corridor.addEventListener('scroll', layout, {passive:true});
   window.addEventListener('resize', layout);
 
-  /* 一进页面就居中：左右都能漫游 */
   function centerCorridor(){
     var mid = (corridor.scrollWidth - corridor.clientWidth) / 2;
     corridor.scrollLeft = Math.max(0, mid);
@@ -277,20 +434,27 @@
   }, 60);
   setTimeout(function(){ clearInterval(wait); centerCorridor(); }, 1500);
 
-  /* ---------- 灯箱 + 物语 ---------- */
+  /* ---------- 灯箱 + 物语 + 侧边翻页 ---------- */
   var lightbox = document.getElementById('lightbox');
   var lbImg = document.getElementById('lbImg');
   var lbName = document.getElementById('lbName');
   var lbStory = document.getElementById('lbStory');
+  var lbCounter = document.getElementById('lbCounter');
   var cur = 0;
+
+  function updateCounter(){
+    if(lbCounter) lbCounter.textContent = (cur + 1) + ' / ' + arts.length;
+  }
+
   function openLightbox(i){
     cur = i; var a = arts[i];
     lbImg.dataset.fb = '';
     lbImg.src = img(a.file);
     lbName.textContent = a.title || '无题';
-    lbStory.textContent = getStory(a);
+    lbStory.innerHTML = getStory(a);
     lightbox.classList.add('open');
     lightbox.setAttribute('aria-hidden','false');
+    updateCounter();
   }
   lbImg.addEventListener('error', function(){
     if(!lbImg.dataset.fb && arts[cur]){ lbImg.dataset.fb = '1'; lbImg.src = CDN + arts[cur].file; }
@@ -298,26 +462,35 @@
   function closeLightbox(){ lightbox.classList.remove('open'); lightbox.setAttribute('aria-hidden','true'); }
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
   lightbox.addEventListener('click', function(e){ if(e.target===lightbox) closeLightbox(); });
+
+  /* 键盘 + 侧边箭头翻页 */
+  function goPrev(){ openLightbox((cur-1+arts.length)%arts.length); }
+  function goNext(){ openLightbox((cur+1)%arts.length); }
   document.addEventListener('keydown', function(e){
     if(!lightbox.classList.contains('open')) return;
     if(e.key==='Escape') closeLightbox();
-    if(e.key==='ArrowLeft') openLightbox((cur-1+arts.length)%arts.length);
-    if(e.key==='ArrowRight') openLightbox((cur+1)%arts.length);
+    if(e.key==='ArrowLeft') goPrev();
+    if(e.key==='ArrowRight') goNext();
   });
-  document.getElementById('lbPrev').addEventListener('click', function(){ openLightbox((cur-1+arts.length)%arts.length); });
-  document.getElementById('lbNext').addEventListener('click', function(){ openLightbox((cur+1)%arts.length); });
+  document.getElementById('lbPrev').addEventListener('click', goPrev);
+  document.getElementById('lbNext').addEventListener('click', goNext);
+
+  /* 复制提示词 */
   document.getElementById('lbCopy').addEventListener('click', function(){
     var t = (arts[cur].prompt || '');
     if(!t){ return; }
-    function done(){ var b=document.getElementById('lbCopy'); var o=b.textContent; b.textContent='已复制 ✓'; setTimeout(function(){b.textContent=o;},1400); }
+    var btn = this;
+    var o = btn.textContent;
+    btn.textContent = '已复制 ✓';
+    setTimeout(function(){ btn.textContent = o; }, 1400);
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(t).then(done, function(){ fallbackCopy(t, done); });
-    } else { fallbackCopy(t, done); }
+      navigator.clipboard.writeText(t).catch(function(){ fallbackCopy(t); });
+    } else { fallbackCopy(t); }
   });
-  function fallbackCopy(text, cb){
+  function fallbackCopy(text){
     var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
     document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); cb&&cb(); }catch(e){}
+    try{ document.execCommand('copy'); }catch(e){}
     document.body.removeChild(ta);
   }
 })();
