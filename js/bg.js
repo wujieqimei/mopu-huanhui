@@ -153,28 +153,6 @@
     });
   }
 
-  /* ---------- 欢迎页入场过渡（晕开） ---------- */
-  let curtainPlaying = false;
-  function bindCurtain() {
-    const welcome = document.querySelector(".welcome-page");
-    const curtain = document.getElementById("curtain");
-    if (!welcome || !curtain) return;
-    // capture 阶段拦截，阻止 main.js 的 body 冒泡跳转
-    document.body.addEventListener("click", (e) => {
-      if (curtainPlaying) { e.preventDefault(); e.stopPropagation(); return; }
-      if (e.target.closest(".auth") || e.target.closest(".login") ||
-          e.target.closest("#petalToggle")) return;
-      e.stopPropagation();
-      curtainPlaying = true;
-      curtain.style.setProperty("--cx", (e.clientX || W / 2) + "px");
-      curtain.style.setProperty("--cy", (e.clientY || H / 2) + "px");
-      // 触发重排以确保过渡生效
-      void curtain.offsetWidth;
-      curtain.classList.add("is-open");
-      setTimeout(() => { window.location.href = "gallery.html"; }, 740);
-    }, true);
-  }
-
   /* ---------- 初始化 ---------- */
   function init() {
     if (canvas) {
@@ -189,7 +167,6 @@
     }
     bindParallax();
     bindToggle();
-    bindCurtain();
     applyPetals();
   }
 
