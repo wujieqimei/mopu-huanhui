@@ -265,6 +265,44 @@ async function encodeOriginalWebp(file) {
   } finally { URL.revokeObjectURL(u); }
 }
 
+/* 生成中等图（最长边 1280px），用于灯箱查看，避免加载数 MB 原图 */
+async function makeMedium(file, maxEdge = 1280) {
+  const u = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = u; });
+    const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("中等图生成失败")), "image/webp", 0.85);
+    });
+    return blob;
+  } finally { URL.revokeObjectURL(u); }
+}
+
+/* 生成模糊预览（LQIP，~32px webp 的 base64 data URI），用于 blur-up 瞬间铺底 */
+async function makeLqip(file, maxEdge = 32) {
+  const u = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = u; });
+    const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("LQIP 生成失败")), "image/webp", 0.7);
+    });
+    return "data:image/webp;base64," + await blobToBase64(blob);
+  } finally { URL.revokeObjectURL(u); }
+}
+
 /* 串行化所有 GitHub 写操作，避免连传多张时 artworks.json/dhashes.json 并发 409 冲突产生孤儿文件 */
 let _ghChain = Promise.resolve();
 function ghSerialize(task) {
@@ -276,19 +314,24 @@ function ghSerialize(task) {
 /* 把一幅作品（新增或编辑换图）写进 GitHub 仓库 */
 async function pushArtworkToGithub(item, file, editingId) {
   const id = editingId || item.id;
-  // 生成缩略图（同时拿到原始尺寸）+ 原图 base64
+  // 生成缩略图（同时拿到原始尺寸）+ 中等图 + 原图 base64 + 模糊预览
   const thumb = await makeThumb(file);
+  const mediumBlob = await makeMedium(file);
   const origB64 = await encodeOriginalWebp(file);   // 全尺寸重编码为 webp q92，统一格式/体积
   const thumbB64 = await blobToBase64(thumb.blob);
+  const mediumB64 = await blobToBase64(mediumBlob);
+  const lqip = await makeLqip(file);
 
-  // 原图与缩略图相互独立：并行读取 sha，再并行 PUT，缩短整体耗时
-  const [up, th] = await Promise.all([
+  // 原图/缩略图/中等图相互独立：并行读取 sha，再并行 PUT，缩短整体耗时
+  const [up, th, md] = await Promise.all([
     ghReadFile(`assets/uploads/${id}.webp`),
-    ghReadFile(`assets/uploads/thumbs/${id}.webp`)
+    ghReadFile(`assets/uploads/thumbs/${id}.webp`),
+    ghReadFile(`assets/uploads/medium/${id}.webp`)
   ]);
   await Promise.all([
     ghWriteFile(`assets/uploads/${id}.webp`, origB64, `upload image: ${item.title}`, up && up.sha),
-    ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha)
+    ghWriteFile(`assets/uploads/thumbs/${id}.webp`, thumbB64, `upload thumb: ${item.title}`, th && th.sha),
+    ghWriteFile(`assets/uploads/medium/${id}.webp`, mediumB64, `upload medium: ${item.title}`, md && md.sha)
   ]);
 
   // 更新 artworks.json
@@ -297,6 +340,8 @@ async function pushArtworkToGithub(item, file, editingId) {
     model: item.model || "", year: "", createdAt: item.createdAt || Date.now(),
     file: `assets/uploads/${id}.webp`,
     thumb: `assets/uploads/thumbs/${id}.webp`,
+    medium: `assets/uploads/medium/${id}.webp`,
+    lqip: lqip,
     w: thumb.w, h: thumb.h
   };
   const aj = await ghReadJson("data/artworks.json");
@@ -440,9 +485,9 @@ function cdnUrl(p) {
 
 /* 取一条作品的可用图片地址（路径直接用，Blob 临时生成 objectURL） */
 function getSrc(art) {
-  if (art.src) return cdnUrl(art.src);
-  if (art.blob) return URL.createObjectURL(art.blob);
-  return "";
+  const u = art.medium || art.thumb || art.src || art.file;
+  if (!u) return art.blob ? URL.createObjectURL(art.blob) : "";
+  return cdnUrl(u);
 }
 
 /* 列表卡片用缩略图（体积小、首屏快）；无缩略图时退回原图/原 Blob */
@@ -881,6 +926,9 @@ function closeLogin() {
   /* ---------- 灯箱（查看） ---------- */
   function openLightbox(art) {
     currentArt = art;
+    lbImg.style.backgroundSize = "cover";
+    lbImg.style.backgroundPosition = "center";
+    lbImg.style.backgroundImage = (art.lqip ? "url('" + art.lqip + "')" : "");  // 模糊预览铺底
     lbImg.src = getSrc(art);
     lbImg.onerror = () => { lbImg.onerror = null; lbImg.src = art.file || art.src || ""; };
     lbImg.alt = art.title;
@@ -906,7 +954,7 @@ function closeLogin() {
   }
   lbDownload.addEventListener("click", () => {
     if (!currentArt) return;
-    const url = getSrc(currentArt);
+    const url = cdnUrl(currentArt.file || currentArt.medium || currentArt.src);  // 下载用全尺寸原图
     if (!url) return;
     const a = document.createElement("a");
     a.href = url;
