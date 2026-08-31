@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>茶裙画隅 · 画阁漫游</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://wujieqimei.github.io" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   :root{
@@ -83,7 +85,7 @@
     will-change:transform,opacity; scroll-snap-align:center;
   }
   .frame__img{
-    width:100%; height:100%; border-radius:14px; background:#ddd center/cover no-repeat;
+    width:100%; height:100%; border-radius:14px; background:linear-gradient(135deg,#e8efe3,#d6e6cd) center/cover no-repeat;
     box-shadow:var(--shadow); border:6px solid #fff; outline:1px solid rgba(201,168,106,.5);
     position:relative;
   }
@@ -242,20 +244,25 @@ function initPavilion(){
     return;
   }
   var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
-  /* 实测：github.io 同源在移动网络下比 jsDelivr 更快更稳（jsDelivr 偶发 301/抖动），
-     故改为优先相对同源路径，jsDelivr 仅作兜底 */
+  /* 双源候选：同源 github.io + jsDelivr 兜底；竞速时两源并行，顺序无关 */
   function srcCandidates(p){ return p ? [p, CDN + p] : []; }
-  /* 走廊懒加载：依次尝试候选源，单源 3.5s 超时或失败则切换，确保不长期空白 */
-  function lazyLoad(el, cands){
-    var idx = 0;
-    (function next(){
-      if(idx >= cands.length) return;
-      var im = new Image(), done = false;
-      var t = setTimeout(function(){ if(done) return; done = true; im.src=''; idx++; next(); }, 3500);
-      im.onload = function(){ if(done) return; done = true; clearTimeout(t); el.style.backgroundImage = "url('" + im.src + "')"; };
-      im.onerror = function(){ if(done) return; done = true; clearTimeout(t); idx++; next(); };
-      im.src = cands[idx];
-    })();
+  /* 走廊竞速加载：同源与 jsDelivr 同时发起，谁先 onload 用谁；适配任意网络(桌面/移动) */
+  function raceLoad(el, cands){
+    if(!cands || !cands.length) return;
+    var done = false, pending = cands.length, imgs = [];
+    cands.forEach(function(src){
+      var im = new Image(); imgs.push(im);
+      im.onload = function(){
+        if(done) return; done = true;
+        imgs.forEach(function(o){ if(o!==im){ o.onload = o.onerror = null; o.src = ''; } });
+        el.style.backgroundImage = "url('" + im.src + "')";
+      };
+      im.onerror = function(){
+        if(done) return; pending--;
+        if(pending === 0 && !done){ el.style.backgroundImage = ''; }
+      };
+      im.src = src;
+    });
   }
 
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
@@ -418,7 +425,7 @@ function initPavilion(){
     corridor.appendChild(f);
   });
 
-  /* 走廊缩略图懒加载：仅画框进入可视区（含缓冲 320px）才请求图片；带多源超时回退 */
+  /* 走廊缩略图竞速加载：画框进入可视区(缓冲 320px)才并发请求双源，取最快者 */
   (function(){
     var frameImgs = corridor.querySelectorAll('.frame__img');
     if ('IntersectionObserver' in window) {
@@ -426,14 +433,14 @@ function initPavilion(){
         entries.forEach(function(en){
           if (en.isIntersecting) {
             var el = en.target;
-            if(!el.dataset.loaded){ el.dataset.loaded = '1'; lazyLoad(el, srcCandidates(el.dataset.src)); }
+            if(!el.dataset.loaded){ el.dataset.loaded = '1'; raceLoad(el, srcCandidates(el.dataset.src)); }
             io.unobserve(el);
           }
         });
       }, { root: corridor, rootMargin: '320px' });
       frameImgs.forEach(function(el){ io.observe(el); });
     } else {
-      frameImgs.forEach(function(el){ if(!el.dataset.loaded){ el.dataset.loaded='1'; lazyLoad(el, srcCandidates(el.dataset.src)); } });
+      frameImgs.forEach(function(el){ if(!el.dataset.loaded){ el.dataset.loaded='1'; raceLoad(el, srcCandidates(el.dataset.src)); } });
     }
   })();
 
@@ -484,23 +491,32 @@ function initPavilion(){
     if (window.innerWidth < 800 && a.thumb) return srcCandidates(a.thumb);
     return srcCandidates(a.file);
   }
-  /* 带超时的多源回退加载：优先同源 github.io，3.5s 超时或失败则切 jsDelivr 兜底 */
-  function loadWithFallback(im, cands, idx){
-    if(idx >= cands.length) return;
-    var done = false;
-    var t = setTimeout(function(){ if(done) return; done = true; im.onload = im.onerror = null; loadWithFallback(im, cands, idx+1); }, 3500);
-    im.onload = function(){ if(done) return; done = true; clearTimeout(t); };
-    im.onerror = function(){ if(done) return; done = true; clearTimeout(t); loadWithFallback(im, cands, idx+1); };
-    im.src = cands[idx];
+  /* 灯箱竞速加载：同源与 jsDelivr 并行请求，最快成功者赋给 lbImg（同 URL 命中缓存不重复下载） */
+  function raceImg(im, cands){
+    if(!cands || !cands.length) return;
+    var done = false, pending = cands.length;
+    cands.forEach(function(src){
+      var t = new Image();
+      t.onload = function(){
+        if(done) return; done = true;
+        im.src = src;
+      };
+      t.onerror = function(){
+        if(done) return; pending--;
+        if(pending === 0 && !done){ /* 全部失败，保留空白 */ }
+      };
+      t.src = src;
+    });
   }
   function openLightbox(i){
     cur = i; var a = arts[i];
+    lbImg.removeAttribute('src');   // 清掉上一张，避免翻页时闪旧图
     lbName.textContent = a.title || '无题';
     lbStory.innerHTML = getStory(a);
     lightbox.classList.add('open');
     lightbox.setAttribute('aria-hidden','false');
     updateCounter();
-    loadWithFallback(lbImg, pickViewSrc(a), 0);
+    raceImg(lbImg, pickViewSrc(a));
   }
   function closeLightbox(){ lightbox.classList.remove('open'); lightbox.setAttribute('aria-hidden','true'); }
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
