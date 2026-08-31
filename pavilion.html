@@ -425,7 +425,9 @@ function initPavilion(){
     f.dataset.i = i;
     var d = document.createElement('div');
     d.className = 'frame__img';
-    d.dataset.src = a.thumb;   // 裸相对路径；懒加载时由 srcCandidates 生成同源+jsDelivr 候选
+    d.dataset.src = a.thumb;   // 走廊用缩略图(512)，体积小、首屏快
+    // 模糊预览：先铺 lqip，清晰图加载完由 loadRace 覆盖，实现 blur-up
+    if (a.lqip) { d.style.backgroundImage = "url('" + a.lqip + "')"; d.style.backgroundSize='cover'; d.style.backgroundPosition='center'; }
     var cap = document.createElement('div');
     cap.className = 'frame__cap';
     cap.textContent = a.title || '无题';
@@ -495,16 +497,19 @@ function initPavilion(){
     if(lbCounter) lbCounter.textContent = (cur + 1) + ' / ' + arts.length;
   }
 
-  /* 灯箱选图：窄屏(手机)用缩略图(512)避免加载数 MB 原图，桌面用原图看细节；返回候选源数组 */
+  /* 灯箱选图：优先中等图(1280)，封顶避免加载数 MB 原图；手机窄屏用缩略图更省；返回候选源数组 */
   function pickViewSrc(a){
+    var big = a.medium || a.file;
     if (window.innerWidth < 800 && a.thumb) return srcCandidates(a.thumb);
-    return srcCandidates(a.file);
+    return srcCandidates(big);
   }
   /* 灯箱竞速加载：复用主源优先+延迟兜底逻辑（主源 github.io，600ms 未回再并发 jsDelivr 兜底） */
   function raceImg(im, cands){ loadRace(im, cands, false); }
   function openLightbox(i){
     cur = i; var a = arts[i];
     lbImg.removeAttribute('src');   // 清掉上一张，避免翻页时闪旧图
+    lbImg.style.backgroundSize='cover'; lbImg.style.backgroundPosition='center';
+    lbImg.style.backgroundImage = (a.lqip ? "url('" + a.lqip + "')" : '');  // 模糊预览铺底
     lbName.textContent = a.title || '无题';
     lbStory.innerHTML = getStory(a);
     lightbox.classList.add('open');
