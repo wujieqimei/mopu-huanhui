@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://wujieqimei.github.io" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preconnect" href="https://gcore.jsdelivr.net" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   :root{
@@ -244,36 +245,33 @@ function initPavilion(){
     return;
   }
   var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
-  /* 双源候选：同源 github.io + jsDelivr 兜底；竞速时两源并行，顺序无关 */
-  function srcCandidates(p){ return p ? [p, CDN + p] : []; }
-  /* 主源优先 + 延迟兜底加载：
-     实测 github.io 同源在桌面/移动两端都最快(0.4~0.7s)且零重定向；
-     jsDelivr 每次带 301 重定向、耗时 1.7~2.8s。故主源固定走 github.io，
-     仅当主源 600ms 内未返回，才并发 jsDelivr 兜底竞速。
-     正常运行时兜底源根本不发请求(零浪费)，慢网络下自动启用。 */
+  var CDN2 = 'https://gcore.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
+  /* 图片源策略（适配国内不挂VPN访问）：
+     实测国内裸 github.io 几乎不可达，故主源改为 jsDelivr 节点：
+     候选顺序 = [cdn.jsdelivr, gcore.jsdelivr(亚太/国内通常更稳), github.io同源兜底]。
+     正常网络立即从首个 jsDelivr 节点返回；该节点慢/挂时 600ms 级联下一候选，谁先回用谁。
+     github.io 仅作最终兜底，正常不触发。消除此前"主源github.io干等600ms"的卡顿。 */
+  function srcCandidates(p){ return p ? [CDN + p, CDN2 + p, p] : []; }
   function applySrc(el, src, isBg){
     if(isBg){ el.style.backgroundImage = "url('" + src + "')"; }
     else { el.src = src; }
   }
   function loadRace(el, cands, isBg){
     if(!cands || !cands.length) return;
-    var done = false, primary = cands[0], fallback = cands[1];
-    var p = new Image();
-    p.onload = function(){ if(done) return; done = true; applySrc(el, p.src, isBg); };
-    p.onerror = function(){
-      if(done) return;
-      if(fallback){ var f = new Image(); f.onload = function(){ if(done) return; done = true; applySrc(el, f.src, isBg); }; f.onerror = function(){}; f.src = fallback; }
-    };
-    p.src = primary;
-    if(fallback){
-      setTimeout(function(){
-        if(done) return;
-        var f = new Image();
-        f.onload = function(){ if(done) return; done = true; applySrc(el, f.src, isBg); };
-        f.onerror = function(){};
-        f.src = fallback;
-      }, 600);
+    var done = false, pending = [], fired = {};
+    function cancelPending(win){
+      pending.forEach(function(o){ if(o!==win){ o.onload = o.onerror = null; try{ o.src = ''; }catch(e){} } });
     }
+    function fire(i){
+      if(done || i >= cands.length || fired[i]) return;
+      fired[i] = true;
+      var im = new Image(); pending.push(im);
+      im.onload = function(){ if(done) return; done = true; cancelPending(im); applySrc(el, im.src, isBg); };
+      im.onerror = function(){ if(done) return; fire(i+1); };   // 该源不可达，立即试下一个
+      im.src = cands[i];
+      if(i+1 < cands.length) setTimeout(function(){ if(!done) fire(i+1); }, 600);  // 慢则级联兜底
+    }
+    fire(0);
   }
 
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
