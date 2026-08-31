@@ -241,8 +241,9 @@ function initPavilion(){
     document.getElementById('corridor').innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
     return;
   }
-  function img(p){ return p; }
   var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
+  /* 图片优先走 jsDelivr（国内加速）；失败再回退 github.io 同源 */
+  function img(p){ return p ? (CDN + p) : p; }
 
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
   var arts = shuffle(raw.slice());
@@ -395,7 +396,7 @@ function initPavilion(){
     f.dataset.i = i;
     var d = document.createElement('div');
     d.className = 'frame__img';
-    d.style.backgroundImage = "url('" + img(a.thumb) + "')";
+    d.dataset.src = img(a.thumb);   // 延迟到滚入可视区再加载，减少移动端并发请求
     var cap = document.createElement('div');
     cap.className = 'frame__cap';
     cap.textContent = a.title || '无题';
@@ -403,6 +404,25 @@ function initPavilion(){
     f.addEventListener('click', function(){ openLightbox(i); });
     corridor.appendChild(f);
   });
+
+  /* 走廊缩略图懒加载：仅画框进入可视区（含缓冲 320px）才请求图片 */
+  (function(){
+    var frameImgs = corridor.querySelectorAll('.frame__img');
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if (en.isIntersecting) {
+            var el = en.target;
+            el.style.backgroundImage = "url('" + el.dataset.src + "')";
+            io.unobserve(el);
+          }
+        });
+      }, { root: corridor, rootMargin: '320px' });
+      frameImgs.forEach(function(el){ io.observe(el); });
+    } else {
+      frameImgs.forEach(function(el){ el.style.backgroundImage = "url('" + el.dataset.src + "')"; });
+    }
+  })();
 
   function layout(){
     var cw = corridor.clientWidth, cx = cw/2;
@@ -446,10 +466,16 @@ function initPavilion(){
     if(lbCounter) lbCounter.textContent = (cur + 1) + ' / ' + arts.length;
   }
 
+  /* 灯箱选图：窄屏(手机)用缩略图(512)避免加载数 MB 原图，桌面用原图看细节 */
+  function pickViewSrc(a){
+    if (window.innerWidth < 800 && a.thumb) return img(a.thumb);
+    return img(a.file);
+  }
+
   function openLightbox(i){
     cur = i; var a = arts[i];
     lbImg.dataset.fb = '';
-    lbImg.src = img(a.file);
+    lbImg.src = pickViewSrc(a);
     lbName.textContent = a.title || '无题';
     lbStory.innerHTML = getStory(a);
     lightbox.classList.add('open');
@@ -457,7 +483,8 @@ function initPavilion(){
     updateCounter();
   }
   lbImg.addEventListener('error', function(){
-    if(!lbImg.dataset.fb && arts[cur]){ lbImg.dataset.fb = '1'; lbImg.src = CDN + arts[cur].file; }
+    /* jsDelivr 失败则回退 github.io 同源原图 */
+    if(!lbImg.dataset.fb && arts[cur]){ lbImg.dataset.fb = '1'; lbImg.src = arts[cur].file; }
   });
   function closeLightbox(){ lightbox.classList.remove('open'); lightbox.setAttribute('aria-hidden','true'); }
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
