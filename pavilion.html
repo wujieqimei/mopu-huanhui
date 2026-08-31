@@ -242,8 +242,21 @@ function initPavilion(){
     return;
   }
   var CDN = 'https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/';
-  /* 图片优先走 jsDelivr（国内加速）；失败再回退 github.io 同源 */
-  function img(p){ return p ? (CDN + p) : p; }
+  /* 实测：github.io 同源在移动网络下比 jsDelivr 更快更稳（jsDelivr 偶发 301/抖动），
+     故改为优先相对同源路径，jsDelivr 仅作兜底 */
+  function srcCandidates(p){ return p ? [p, CDN + p] : []; }
+  /* 走廊懒加载：依次尝试候选源，单源 3.5s 超时或失败则切换，确保不长期空白 */
+  function lazyLoad(el, cands){
+    var idx = 0;
+    (function next(){
+      if(idx >= cands.length) return;
+      var im = new Image(), done = false;
+      var t = setTimeout(function(){ if(done) return; done = true; im.src=''; idx++; next(); }, 3500);
+      im.onload = function(){ if(done) return; done = true; clearTimeout(t); el.style.backgroundImage = "url('" + im.src + "')"; };
+      im.onerror = function(){ if(done) return; done = true; clearTimeout(t); idx++; next(); };
+      im.src = cands[idx];
+    })();
+  }
 
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
   var arts = shuffle(raw.slice());
@@ -396,7 +409,7 @@ function initPavilion(){
     f.dataset.i = i;
     var d = document.createElement('div');
     d.className = 'frame__img';
-    d.dataset.src = img(a.thumb);   // 延迟到滚入可视区再加载，减少移动端并发请求
+    d.dataset.src = a.thumb;   // 裸相对路径；懒加载时由 srcCandidates 生成同源+jsDelivr 候选
     var cap = document.createElement('div');
     cap.className = 'frame__cap';
     cap.textContent = a.title || '无题';
@@ -405,7 +418,7 @@ function initPavilion(){
     corridor.appendChild(f);
   });
 
-  /* 走廊缩略图懒加载：仅画框进入可视区（含缓冲 320px）才请求图片 */
+  /* 走廊缩略图懒加载：仅画框进入可视区（含缓冲 320px）才请求图片；带多源超时回退 */
   (function(){
     var frameImgs = corridor.querySelectorAll('.frame__img');
     if ('IntersectionObserver' in window) {
@@ -413,14 +426,14 @@ function initPavilion(){
         entries.forEach(function(en){
           if (en.isIntersecting) {
             var el = en.target;
-            el.style.backgroundImage = "url('" + el.dataset.src + "')";
+            if(!el.dataset.loaded){ el.dataset.loaded = '1'; lazyLoad(el, srcCandidates(el.dataset.src)); }
             io.unobserve(el);
           }
         });
       }, { root: corridor, rootMargin: '320px' });
       frameImgs.forEach(function(el){ io.observe(el); });
     } else {
-      frameImgs.forEach(function(el){ el.style.backgroundImage = "url('" + el.dataset.src + "')"; });
+      frameImgs.forEach(function(el){ if(!el.dataset.loaded){ el.dataset.loaded='1'; lazyLoad(el, srcCandidates(el.dataset.src)); } });
     }
   })();
 
@@ -466,26 +479,29 @@ function initPavilion(){
     if(lbCounter) lbCounter.textContent = (cur + 1) + ' / ' + arts.length;
   }
 
-  /* 灯箱选图：窄屏(手机)用缩略图(512)避免加载数 MB 原图，桌面用原图看细节 */
+  /* 灯箱选图：窄屏(手机)用缩略图(512)避免加载数 MB 原图，桌面用原图看细节；返回候选源数组 */
   function pickViewSrc(a){
-    if (window.innerWidth < 800 && a.thumb) return img(a.thumb);
-    return img(a.file);
+    if (window.innerWidth < 800 && a.thumb) return srcCandidates(a.thumb);
+    return srcCandidates(a.file);
   }
-
+  /* 带超时的多源回退加载：优先同源 github.io，3.5s 超时或失败则切 jsDelivr 兜底 */
+  function loadWithFallback(im, cands, idx){
+    if(idx >= cands.length) return;
+    var done = false;
+    var t = setTimeout(function(){ if(done) return; done = true; im.onload = im.onerror = null; loadWithFallback(im, cands, idx+1); }, 3500);
+    im.onload = function(){ if(done) return; done = true; clearTimeout(t); };
+    im.onerror = function(){ if(done) return; done = true; clearTimeout(t); loadWithFallback(im, cands, idx+1); };
+    im.src = cands[idx];
+  }
   function openLightbox(i){
     cur = i; var a = arts[i];
-    lbImg.dataset.fb = '';
-    lbImg.src = pickViewSrc(a);
     lbName.textContent = a.title || '无题';
     lbStory.innerHTML = getStory(a);
     lightbox.classList.add('open');
     lightbox.setAttribute('aria-hidden','false');
     updateCounter();
+    loadWithFallback(lbImg, pickViewSrc(a), 0);
   }
-  lbImg.addEventListener('error', function(){
-    /* jsDelivr 失败则回退 github.io 同源原图 */
-    if(!lbImg.dataset.fb && arts[cur]){ lbImg.dataset.fb = '1'; lbImg.src = arts[cur].file; }
-  });
   function closeLightbox(){ lightbox.classList.remove('open'); lightbox.setAttribute('aria-hidden','true'); }
   document.getElementById('lbClose').addEventListener('click', closeLightbox);
   lightbox.addEventListener('click', function(e){ if(e.target===lightbox) closeLightbox(); });
