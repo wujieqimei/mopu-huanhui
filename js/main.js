@@ -388,6 +388,8 @@ async function deleteArtworkFromGithub(art) {
   if (up) await ghRemoveFile(`assets/uploads/${art.id}.webp`, up.sha, `delete image: ${art.id}`);
   const th = await ghReadFile(`assets/uploads/thumbs/${art.id}.webp`);
   if (th) await ghRemoveFile(`assets/uploads/thumbs/${art.id}.webp`, th.sha, `delete thumb: ${art.id}`);
+  const md = await ghReadFile(`assets/uploads/medium/${art.id}.webp`);
+  if (md) await ghRemoveFile(`assets/uploads/medium/${art.id}.webp`, md.sha, `delete medium: ${art.id}`);
 }
 
 /* 按 createdAt 倒序：最新上传排在最前 */
