@@ -168,6 +168,23 @@ async function ghWriteFile(path, contentB64, message, sha, attempt = 0) {
 async function ghRemoveFile(path, sha, message) {
   return ghRequest(path, "DELETE", { message, sha, branch: GH_BRANCH });
 }
+/* 带重试地删除一个仓库资源：先取 sha，不存在即视为已删（返回 true）；
+   遇 409/5xx/网络抖动自动重试，避免「删除中途失败留下孤儿、需后期清理」。 */
+async function ghRemovePathWithRetry(path, message, attempt = 0) {
+  try {
+    const f = await ghReadFile(path);
+    if (!f) return true; // 已不存在，视为删除成功
+    await ghRemoveFile(path, f.sha, message);
+    return true;
+  } catch (e) {
+    const transient = /409|冲突|Conflict|timeout|network|Failed to fetch|50[0-9]|ECONN|abort/i.test(e.message || "");
+    if (attempt < 3 && transient) {
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      return ghRemovePathWithRetry(path, message, attempt + 1);
+    }
+    throw e;
+  }
+}
 /* 读取/写入 JSON（UTF-8 安全） */
 async function ghReadJson(path) {
   const f = await ghReadFile(path);
@@ -371,25 +388,51 @@ async function updateArtworkMetaInGithub(editingId, fields) {
   await ghWriteJson("data/artworks.json", arts, `edit meta: ${editingId}`, aj.sha);
   try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
 }
-/* 从仓库删除一幅作品（图 + 缩略图 + json + dhashes） */
+/* 从仓库「一次处理」彻底删除一幅作品：
+   - 数据层：artworks.json 剔除条目 + 重建快照 + 清理 dhashes 指纹
+   - 资源层：原图 + 缩略图 + 中等图（按记录真实路径删，不再依赖后期检索清理）
+   所有 GitHub 操作均带重试；资源删除尽力逐一完成，仅当仍有失败时抛出，
+   由 UI 提示用户重试（本地黑名单已防作品「复活」）。 */
 async function deleteArtworkFromGithub(art) {
+  const id = art.id;
+  // 1) 数据层：artworks.json 剔除该条目
   const aj = await ghReadJson("data/artworks.json");
   if (aj) {
-    const arts = aj.data.filter((a) => a.id !== art.id);
-    await ghWriteJson("data/artworks.json", arts, `delete: ${art.title}`, aj.sha);
-    try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
+    const arts = aj.data.filter((a) => a.id !== id);
+    await ghWriteJson("data/artworks.json", arts, `delete: ${art.title || id}`, aj.sha);
+    // 重建快照（重试 3 次；即便失败也继续，因画阁漫游现以 json 为权威源）
+    let snapErr = null;
+    for (let i = 0; i < 3; i++) {
+      try { await rebuildArtworksJs(arts); snapErr = null; break; }
+      catch (e) { snapErr = e; await new Promise((r) => setTimeout(r, 500)); }
+    }
+    if (snapErr) console.warn("快照重建失败（不影响已同步数据，画阁漫游读 json 为权威源）：", snapErr);
   }
+  // 2) dhashes 指纹
   const dj = await ghReadJson("data/dhashes.json");
-  if (dj && dj.data[art.id]) {
-    delete dj.data[art.id];
-    await ghWriteJson("data/dhashes.json", dj.data, `delete dhash: ${art.id}`, dj.sha);
+  if (dj && dj.data[id]) {
+    delete dj.data[id];
+    await ghWriteJson("data/dhashes.json", dj.data, `delete dhash: ${id}`, dj.sha);
   }
-  const up = await ghReadFile(`assets/uploads/${art.id}.webp`);
-  if (up) await ghRemoveFile(`assets/uploads/${art.id}.webp`, up.sha, `delete image: ${art.id}`);
-  const th = await ghReadFile(`assets/uploads/thumbs/${art.id}.webp`);
-  if (th) await ghRemoveFile(`assets/uploads/thumbs/${art.id}.webp`, th.sha, `delete thumb: ${art.id}`);
-  const md = await ghReadFile(`assets/uploads/medium/${art.id}.webp`);
-  if (md) await ghRemoveFile(`assets/uploads/medium/${art.id}.webp`, md.sha, `delete medium: ${art.id}`);
+  // 3) 资源层：真实路径 + id 兜底，全部尽力删除（去重后逐一删）
+  const rel = (p) => {
+    if (!p || /^https?:\/\//i.test(p)) return null; // CDN 绝对路径无法删，交给 id 兜底
+    return p.replace(/^\.?\//, "");
+  };
+  const paths = new Set();
+  [rel(art.file), rel(art.thumb), rel(art.medium)].forEach((p) => { if (p) paths.add(p); });
+  paths.add(`assets/uploads/${id}.webp`);
+  paths.add(`assets/uploads/thumbs/${id}.webp`);
+  paths.add(`assets/uploads/medium/${id}.webp`);
+
+  const failures = [];
+  for (const p of paths) {
+    try { await ghRemovePathWithRetry(p, `delete asset: ${id}`); }
+    catch (e) { failures.push(p + " (" + (e && e.message ? e.message : e) + ")"); }
+  }
+  if (failures.length) {
+    throw new Error("部分仓库资源删除失败：" + failures.join("；") + " —— 请稍后重新删除一次以彻底清理。");
+  }
 }
 
 /* 按 createdAt 倒序：最新上传排在最前 */
@@ -1142,6 +1185,7 @@ function closeLogin() {
     // 1) 本地优先：立刻移除并刷新界面，确保「删除」即时生效，不依赖 GitHub 是否成功
     try { await idbDelete(art.id); } catch (e) { /* 本地删除尽力而为 */ }
     addDeletedId(art.id); // 黑名单：后续 load() 永不把已删图重新加回
+    delete BUILTIN_DHASHES[art.id]; // 同步清理内存指纹，避免已删图被误判重复
     artworks = artworks.filter((a) => a.id !== art.id);
     render();
 
@@ -1150,7 +1194,7 @@ function closeLogin() {
     try {
       if (getGithubToken()) {
         await ghSerialize(() => deleteArtworkFromGithub(art));
-        msg = "已从 GitHub 仓库删除（约 1 分钟后全网访客可见）。";
+        msg = "已彻底删除：原图 / 缩略图 / 中等图 / 数据 一次性清理完成（约 1 分钟后全网访客可见）。";
       } else {
         msg = "已删除本地副本。未配置 GitHub Token，仓库未同步——点「⚙ 仓库」粘贴 Token 后可同步删除仓库。";
       }
