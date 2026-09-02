@@ -238,8 +238,10 @@
 
 <!-- 数据快照（根级相对路径，同源加载；加 Date.now() 缓存破除，确保画廊上传后立即可见） -->
 <script>
-function initPavilion(){
-  var raw = (window.__BUILTIN__ && window.__BUILTIN__.artworks) || window.__BUILTIN__ || [];
+function initPavilion(data){
+  /* data：优先用 fetch 到的 data/artworks.json（与画廊同源、上传即更新）；
+     否则回退 artworks.js 快照。两者皆无则空。 */
+  var raw = data || (window.__BUILTIN__ && window.__BUILTIN__.artworks) || window.__BUILTIN__ || [];
   if(!Array.isArray(raw) || !raw.length){
     document.getElementById('corridor').innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
     return;
@@ -534,16 +536,27 @@ function initPavilion(){
   document.getElementById('lbNext').addEventListener('click', goNext);
 }
 
-/* 动态加载数据快照 + 缓存破除：确保画廊上传后，画阁漫游立即可见新作（GitHub Pages 对数据文件强制 10 分钟缓存） */
+/* 画阁漫游统一以 data/artworks.json 为唯一权威数据源（与画廊完全一致）。
+   根因：此前依赖 artworks.js 快照，而该快照在上传时若重建失败/竞态就会与
+   artworks.json 发散（画廊靠 IndexedDB 本地留存补回、画阁只读快照故缺图）。
+   改为直接 fetch json（带缓存破除 + no-store），与画廊同源、上传即更新，
+   从根本上消除"画廊有、画阁缺"；仅在 fetch 失败时回退 artworks.js 快照。 */
 (function(){
-  var s = document.createElement('script');
-  s.src = 'data/artworks.js?v=' + Date.now();
-  s.onload = function(){ try{ initPavilion(); }catch(e){ console.error('画阁漫游初始化失败:', e); } };
-  s.onerror = function(){
+  function showErr(msg){
     var c = document.getElementById('corridor');
-    if(c) c.innerHTML = '<div class="empty">未能加载数据快照（data/artworks.js）</div>';
-  };
-  document.head.appendChild(s);
+    if(c) c.innerHTML = '<div class="empty">' + (msg || '未能加载作品数据') + '</div>';
+  }
+  function loadFromSnapshot(){
+    var s = document.createElement('script');
+    s.src = 'data/artworks.js?v=' + Date.now();
+    s.onload = function(){ try{ initPavilion(); }catch(e){ showErr('画阁漫游初始化失败：' + (e && e.message ? e.message : e)); } };
+    s.onerror = function(){ showErr('未能加载数据（data/artworks.js）'); };
+    document.head.appendChild(s);
+  }
+  fetch('data/artworks.json?v=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(arr){ initPavilion(arr); })
+    .catch(function(e){ console.warn('artworks.json 加载失败，回退快照：', e); loadFromSnapshot(); });
 })();
 </script>
 </body>
