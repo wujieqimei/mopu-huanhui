@@ -27,12 +27,18 @@
       position:fixed; inset:0; z-index:9999;
       display:flex; align-items:center; justify-content:flex-start;
       padding-left:9vw;
-      background:
-        linear-gradient(to right, rgba(18,42,26,.62) 0%, rgba(18,42,26,.22) 42%, rgba(18,42,26,0) 70%),
-        linear-gradient(to bottom, rgba(26,58,36,.30) 0%, rgba(26,58,36,.12) 45%, rgba(247,245,236,.22) 100%),
-        url('assets/maids/maid-tea.webp') center/cover no-repeat;
+      /* 实底铺底：彻底杜绝欢迎页花瓣/纹样背景在过渡期透出 */
+      background-color:#16241a;
+      /* 直接展示女仆图（与欢迎页同一张 maid-tea.webp），不再压暗整张图 */
+      background-image:url('assets/maids/maid-tea.webp');
+      background-size:cover; background-position:center center; background-repeat:no-repeat;
       opacity:0; pointer-events:none;
       transition:opacity .6s ease;
+    }
+    /* 仅左侧一道极轻暗角，保证文字可读；不再用整屏渐变做"背景底" */
+    .tea-transition::before{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(to right, rgba(10,20,14,.55) 0%, rgba(10,20,14,.20) 36%, rgba(10,20,14,0) 64%);
     }
     .tea-transition.is-active{ opacity:1; pointer-events:auto }
     .tea-caption{
