@@ -148,11 +148,11 @@
     </div>
   </div>
 
-  <!-- 作品数据快照：以 <script> 注入全局变量，绕开沙箱对 fetch 的限制，也更稳健。
-       defer：不阻塞首屏渲染——页面骨架先显示，脚本按序在 DOM 解析后执行。
-      数据快照保持相对路径（github.io）以保证实时同步；main.js/bg.js 主源亦走同源相对路径
-      （jsDelivr @main 会滞后吐旧版，导致上传逻辑/跳转行为不一致），jsDelivr 仅作 onerror 兜底。 -->
-  <script src="data/artworks.js" defer></script>
+  <!-- 作品数据：画廊改为实时读取 data/artworks.json（main.js 内 fetchBuiltin 的兜底分支自动 fetch），
+       不再注入 artworks.js 快照脚本，故 window.__BUILTIN__ 不再被设置。
+       快照改由 CI（.github/workflows/heal.yml）在每次 push 时从 json 自动重建，仅作离线/取数失败的
+       最后兜底，从根上消除“快照与 json 发散”类问题。
+       main.js/bg.js 主源走同源相对路径（jsDelivr @main 会滞后吐旧版），jsDelivr 仅作 onerror 兜底。 -->
   <script src="js/main.js?v=20260905" defer
           onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/main.js';document.body.appendChild(s);})();"></script>
   <script src="js/bg.js?v=20260905" defer
