@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>画廊 · 茶裙画隅</title>
   <meta name="description" content="茶裙画隅画廊 —— 一隅画廊，抹茶与女仆幻像。" />
+  <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://gcore.jsdelivr.net" crossorigin />
@@ -149,13 +150,13 @@
 
   <!-- 作品数据快照：以 <script> 注入全局变量，绕开沙箱对 fetch 的限制，也更稳健。
        defer：不阻塞首屏渲染——页面骨架先显示，脚本按序在 DOM 解析后执行。
-       数据快照保持相对路径（github.io）以保证实时同步；css/main/bg 走 jsDelivr 加速，
-       失败时 onerror 自动降级回相对路径。 -->
+      数据快照保持相对路径（github.io）以保证实时同步；main.js/bg.js 主源亦走同源相对路径
+      （jsDelivr @main 会滞后吐旧版，导致上传逻辑/跳转行为不一致），jsDelivr 仅作 onerror 兜底。 -->
   <script src="data/artworks.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/main.js" defer
-          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/main.js';document.body.appendChild(s);})();"></script>
-  <script src="https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js" defer
-          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='js/bg.js';document.body.appendChild(s);})();"></script>
+  <script src="js/main.js?v=20260905" defer
+          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/main.js';document.body.appendChild(s);})();"></script>
+  <script src="js/bg.js?v=20260905" defer
+          onerror="this.onerror=null;(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/wujieqimei/mopu-huanhui@main/js/bg.js';document.body.appendChild(s);})();"></script>
 
   <!-- 顶栏「☰ 管理」下拉：与加载/同步链路解耦，独立开关 -->
   <script>
