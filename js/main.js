@@ -210,16 +210,9 @@ async function ghWriteJson(path, data, message, sha, attempt = 0) {
     throw e;
   }
 }
-/* 重建 data/artworks.js 快照（window.__BUILTIN__）。
-   fetchBuiltin() 优先读快照 —— 若只更新 artworks.json 不重建快照，
-   全新访客将永远看不到新上传的作品。转义规则与构建脚本一致（< > → \u003c \u003e）。 */
-async function rebuildArtworksJs(arts) {
-  const jsText = "window.__BUILTIN__ = " +
-    JSON.stringify(arts).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") + ";";
-  const f = await ghReadFile("data/artworks.js");
-  await ghWriteFile("data/artworks.js", utf8ToBase64(jsText),
-    "rebuild artworks.js snapshot (" + arts.length + " items)", f && f.sha);
-}
+/* 注意：data/artworks.js 快照不再由浏览器重建，改由 CI（.github/workflows/heal.yml）
+   在每次 push 到 main 时从 data/artworks.json 自动重建，保证快照与 json 永不发散。
+   画廊/画阁漫游均优先实时读取 data/artworks.json，快照仅作最后兜底。 */
 
 /* File / Blob -> 标准 base64（去掉 data: 前缀） */
 function fileToBase64(file) {
@@ -366,8 +359,7 @@ async function pushArtworkToGithub(item, file, editingId) {
   const idx = arts.findIndex((a) => a.id === id);
   if (idx >= 0) arts[idx] = rec; else arts.push(rec);
   await ghWriteJson("data/artworks.json", arts, `update artworks.json: ${item.title}`, aj && aj.sha);
-  // 重建快照，让新作品对全新访客立即可见；失败不阻断（图与 json 已成功）
-  try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
+  // 快照（data/artworks.js）改由 CI 在每次 push 时从 json 自动重建，此处不再重建（根治快照/JSON 分歧）
 
   // 更新 dhashes.json（若有指纹）
   if (item.dhash) {
@@ -386,7 +378,7 @@ async function updateArtworkMetaInGithub(editingId, fields) {
   if (idx < 0) return;
   arts[idx] = Object.assign({}, arts[idx], fields);
   await ghWriteJson("data/artworks.json", arts, `edit meta: ${editingId}`, aj.sha);
-  try { await rebuildArtworksJs(arts); } catch (e) { console.warn("快照重建失败（不影响已同步数据）：", e); }
+  // 快照由 CI 自动重建（见 .github/workflows/heal.yml），此处不再重建
 }
 /* 从仓库「一次处理」彻底删除一幅作品：
    - 数据层：artworks.json 剔除条目 + 重建快照 + 清理 dhashes 指纹
@@ -400,13 +392,7 @@ async function deleteArtworkFromGithub(art) {
   if (aj) {
     const arts = aj.data.filter((a) => a.id !== id);
     await ghWriteJson("data/artworks.json", arts, `delete: ${art.title || id}`, aj.sha);
-    // 重建快照（重试 3 次；即便失败也继续，因画阁漫游现以 json 为权威源）
-    let snapErr = null;
-    for (let i = 0; i < 3; i++) {
-      try { await rebuildArtworksJs(arts); snapErr = null; break; }
-      catch (e) { snapErr = e; await new Promise((r) => setTimeout(r, 500)); }
-    }
-    if (snapErr) console.warn("快照重建失败（不影响已同步数据，画阁漫游读 json 为权威源）：", snapErr);
+    // 快照由 CI 在每次 push 时自动重建，删除后下一轮推送即同步，无需在此处重建
   }
   // 2) dhashes 指纹
   const dj = await ghReadJson("data/dhashes.json");
