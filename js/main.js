@@ -369,14 +369,27 @@ async function pushArtworkToGithub(item, file, editingId) {
     await ghWriteJson("data/dhashes.json", map, `update dhashes.json: ${item.id}`, dj && dj.sha);
   }
 }
-/* 仅更新 artworks.json 中的文字字段（不改图） */
+/* 仅更新 artworks.json 中的文字字段（不改图）
+   注意：此函数曾被两个「静默 return」坑过——读取 json 返回空、或按 id 在 json 里
+   找不到该作品时直接 return，导致画廊改名只改了本地 IndexedDB、线上 json 永远不更新，
+   画阁漫游（读 json）因此看不到新名。现改为：读取带重试；按 id 匹配失败时回退用
+   图片路径(file/src)再匹配一次；仍找不到才如实抛出（让 UI 弹「同步失败」而非谎称成功）。 */
 async function updateArtworkMetaInGithub(editingId, fields) {
-  const aj = await ghReadJson("data/artworks.json");
-  if (!aj) return;
+  const lookup = fields.file || fields.src;        // 仅用于兜底匹配，不写入条目
+  const meta = { title: fields.title, prompt: fields.prompt, model: fields.model };
+  let aj = null;
+  for (let t = 0; t < 3 && !aj; t++) {
+    try { aj = await ghReadJson("data/artworks.json"); } catch (e) { aj = null; }
+    if (!aj && t < 2) await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!aj) throw new Error("无法读取 data/artworks.json，改名未能同步到仓库");
   const arts = aj.data.slice();
-  const idx = arts.findIndex((a) => a.id === editingId);
-  if (idx < 0) return;
-  arts[idx] = Object.assign({}, arts[idx], fields);
+  let idx = arts.findIndex((a) => a.id === editingId);
+  if (idx < 0 && lookup) idx = arts.findIndex((a) => a.file === lookup || a.src === lookup);
+  if (idx < 0) {
+    throw new Error("仓库 artworks.json 中找不到该作品（id=" + editingId + "），改名未同步到仓库");
+  }
+  arts[idx] = Object.assign({}, arts[idx], meta);
   await ghWriteJson("data/artworks.json", arts, `edit meta: ${editingId}`, aj.sha);
   // 快照由 CI 自动重建（见 .github/workflows/heal.yml），此处不再重建
 }
@@ -1155,7 +1168,7 @@ function closeLogin() {
       showToast("已保存到本地，正在同步到 GitHub 仓库…");
       ghSerialize(async () => {
         if (needPush) await pushArtworkToGithub(item, file, editingId);
-        else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model });
+        else if (needMeta) await updateArtworkMetaInGithub(editingId, { title, prompt, model, file: item.src || item.file });
       }).then(() => showToast("已同步到 GitHub 仓库（约 1 分钟后全网访客可见）。"))
         .catch((err) => showToast("本地已显示；同步 GitHub 失败：" + (err && err.message ? err.message : err) + "（检查 Token 后点「☁ 同步」一键补推即可）", true));
     } else {
